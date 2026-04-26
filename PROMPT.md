@@ -12,7 +12,7 @@ Phase 2 · Core Entities    Doctor · Patient · Chamber · Schedule models + AP
 Phase 3 · Slot Engine      Slot generation · Exceptions · Availability API
 Phase 4 · Booking Flow     Appointment create → pricing → payment initiation → confirmation
 Phase 5 · Queue            QueueEntry · Walk-in · Display screen
-Phase 6 · Payments         PaymentService · bKash · Nagad · Stripe adapters · Webhooks
+Phase 6 · Payments         PaymentService · bKash/Nagad/Stripe · Cash counter/Offline payment · Receipt generation
 Phase 7 · Notifications    NotificationService · SMS · Email adapters · Templates
 Phase 8 · Portals UI       Admin · Receptionist · Doctor · Accountant · Patient (shadcn)
 Phase 9 · Audit Log        AuditLog schema · AuditService · Retention cron
@@ -22,6 +22,7 @@ Phase 12 · Optional        Redis · S3 · Calendar sync · WhatsApp · Web Push
 Phase 13 · Deployment      Dockerfile · docker-compose · CI/CD
 ```
 
+---
 ## COMPLETED PHASES & TASKS
 
 - **Phase 1 (Foundation):** DB schema, Prisma client, PBAC service, and Auth (NextAuth) setup completed.
@@ -29,45 +30,71 @@ Phase 13 · Deployment      Dockerfile · docker-compose · CI/CD
 - **Phase 11 (Animations/UI):** GSAP animation system, hybrid i18n setup, and the complete Landing Page (`/`, `/about`, `/contact`, `/doctors`) implemented.
 
 ---
+## PART 1: AUTHORIZATION ARCHITECTURE
 
-## PART 1 — AUTHORIZATION (PBAC)
+### 1.1 Dynamic Permission-Based Access Control (PBAC)
 
-**Never use RBAC (role name checks).** Every protected action checks a permission key string.
+**Do NOT use simple role-based access control (RBAC).** This system uses a fully dynamic, policy-driven authorization model where:
 
-### Permission Format
+- **Permissions** are the atomic unit (not roles)
+- **Roles** are named bundles of permissions — editable by Super Admin at runtime
+- **Users** are assigned one or more roles
+- **Every protected action** in the system is checked against a permission, not a role name
+- The Super Admin can create new roles, rename existing ones, and reassign permissions — all from the Admin UI with zero code changes
+
+#### Permission Model
+
+Every permission is identified by a string in the format:
 ```
 resource:action[:scope]
-
-Examples:
-appointments:create           appointments:read:own / :all
-appointments:cancel:own / :any
-doctors:update:own / :any     patients:read:assigned / :all
-payments:read:own / :all      payments:refund
-reports:view:financial / :operational
-roles:manage                  settings:manage
-queue:manage                  invoices:generate
-staff:manage                  schedule:manage:own
 ```
 
-### Prisma Schema (PBAC)
+Examples:
+```
+appointments:create
+appointments:read:own          # only own appointments
+appointments:read:all          # all appointments in the system
+appointments:cancel:own
+appointments:cancel:any
+doctors:read
+doctors:update:own             # doctor editing their own profile
+doctors:update:any             # admin editing any doctor profile
+payments:read:own
+payments:read:all
+payments:refund
+reports:view:financial
+reports:view:operational
+settings:manage
+roles:manage                   # who can edit the permission system itself
+patients:read:assigned         # doctor sees only their own patients
+patients:read:all
+queue:manage
+invoices:generate
+staff:manage
+```
+
+#### Database Schema for PBAC
+
 ```prisma
 model Permission {
-  id              String           @id @default(cuid())
-  key             String           @unique   // "appointments:cancel:any"
-  displayName     String
-  group           String                     // UI grouping e.g. "Appointments"
-  description     String?
-  createdAt       DateTime         @default(now())
+  id          String   @id @default(cuid())
+  key         String   @unique  // e.g. "appointments:cancel:any"
+  displayName String            // e.g. "Cancel Any Appointment"
+  group       String            // e.g. "Appointments" — for UI grouping
+  description String?
+  createdAt   DateTime @default(now())
+
   rolePermissions RolePermission[]
 }
 
 model Role {
-  id              String           @id @default(cuid())
-  name            String           @unique
-  displayName     String
-  isSystem        Boolean          @default(false)   // system roles: cannot delete
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id          String   @id @default(cuid())
+  name        String   @unique  // e.g. "receptionist", "doctor", "accountant"
+  displayName String            // e.g. "Receptionist"
+  isSystem    Boolean  @default(false)  // system roles cannot be deleted, only modified
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   rolePermissions RolePermission[]
   userRoles       UserRole[]
 }
@@ -75,118 +102,308 @@ model Role {
 model RolePermission {
   roleId       String
   permissionId String
-  grantedAt    DateTime   @default(now())
-  grantedBy    String
+  grantedAt    DateTime @default(now())
+  grantedBy    String   // userId of admin who granted
+
   role         Role       @relation(fields: [roleId], references: [id])
   permission   Permission @relation(fields: [permissionId], references: [id])
+
   @@id([roleId, permissionId])
 }
 
 model UserRole {
-  userId     String
-  roleId     String
-  assignedAt DateTime @default(now())
-  assignedBy String
-  user       User     @relation(fields: [userId], references: [id])
-  role       Role     @relation(fields: [roleId], references: [id])
+  userId      String
+  roleId      String
+  assignedAt  DateTime @default(now())
+  assignedBy  String   // userId of admin who assigned
+
+  user        User @relation(fields: [userId], references: [id])
+  role        Role @relation(fields: [roleId], references: [id])
+
   @@id([userId, roleId])
 }
+
+model User {
+  id         String     @id @default(cuid())
+  // ... other fields
+  userRoles  UserRole[]
+}
 ```
 
-### Authorization Service (`lib/services/authorization.service.ts`)
+#### Authorization Service
+
+File: `lib/services/authorization.service.ts`
+
 ```typescript
-export async function getUserPermissions(userId: string): Promise<Set<string>>
-export async function can(userId: string, permission: string): Promise<boolean>
-export async function canAny(userId: string, permissions: string[]): Promise<boolean>
-export async function requirePermission(userId: string, permission: string): Promise<void>
-// throws ForbiddenError if not allowed — never checks role names
+// The ONLY place permission checks happen on the server.
+// Never check role names in business logic — always check permission keys.
+
+export async function getUserPermissions(userId: string): Promise<Set<string>> {
+  const userRoles = await prisma.userRole.findMany({
+    where: { userId },
+    include: {
+      role: {
+        include: {
+          rolePermissions: {
+            include: { permission: true }
+          }
+        }
+      }
+    }
+  });
+
+  const permissions = new Set<string>();
+  for (const ur of userRoles) {
+    for (const rp of ur.role.rolePermissions) {
+      permissions.add(rp.permission.key);
+    }
+  }
+  return permissions;
+}
+
+export async function can(userId: string, permission: string): Promise<boolean> {
+  const permissions = await getUserPermissions(userId);
+  return permissions.has(permission);
+}
+
+export async function canAny(userId: string, permissions: string[]): Promise<boolean> {
+  const userPerms = await getUserPermissions(userId);
+  return permissions.some(p => userPerms.has(p));
+}
+
+export async function requirePermission(userId: string, permission: string): Promise<void> {
+  const allowed = await can(userId, permission);
+  if (!allowed) {
+    throw new ForbiddenError(`Missing permission: ${permission}`);
+  }
+}
 ```
 
-### API Route Pattern
+#### API Route Protection Pattern
+
 ```typescript
-// Every protected route handler follows this order:
-const limited = await rateLimit(req, { limit: 20, windowMs: 60_000 });
-if (limited) return NextResponse.json({ success: false, error: 'RATE_LIMITED' }, { status: 429 });
-const session = await auth();
-if (!session) return NextResponse.json({ success: false, error: 'UNAUTHORIZED' }, { status: 401 });
-const body = Schema.safeParse(await req.json());
-if (!body.success) return NextResponse.json({ success: false, validationErrors: body.error.errors }, { status: 400 });
-await requirePermission(session.user.id, isOwn ? 'resource:action:own' : 'resource:action:any');
-// then call service
+// app/api/appointments/[id]/cancel/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { requirePermission } from '@/lib/services/authorization.service';
+import { cancelAppointment } from '@/lib/services/appointment.service';
+import { CancelAppointmentSchema } from '@/lib/zod-schemas/appointment.schema';
+import { rateLimit } from '@/lib/middleware/rate-limit';
+
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  // Rate limit
+  const limited = await rateLimit(req, { limit: 20, windowMs: 60_000 });
+  if (limited) return NextResponse.json({ success: false, error: 'RATE_LIMITED' }, { status: 429 });
+
+  // Auth
+  const session = await auth();
+  if (!session) return NextResponse.json({ success: false, error: 'UNAUTHORIZED' }, { status: 401 });
+
+  // Validate body
+  const body = CancelAppointmentSchema.safeParse(await req.json());
+  if (!body.success) return NextResponse.json({ success: false, validationErrors: body.error.errors }, { status: 400 });
+
+  // Scope-aware permission check
+  const appointment = await getAppointment(params.id);
+  const isOwn = appointment.patientId === session.user.id;
+  await requirePermission(session.user.id, isOwn ? 'appointments:cancel:own' : 'appointments:cancel:any');
+
+  const result = await cancelAppointment(params.id, session.user.id, body.data.reason, req);
+  return NextResponse.json({ success: true, data: result });
+}
 ```
 
-### Frontend Hook
+#### Frontend Permission Hook
+
 ```typescript
-// lib/hooks/usePermissions.ts — never check role names in UI
+// lib/hooks/usePermissions.ts
+// Permissions are fetched once after login and stored in Zustand.
+// Components use this hook — never check role names in the UI.
+
 export function usePermissions() {
-  const permissions = useAuthStore(s => s.permissions); // Set<string>, loaded on login
+  const permissions = useAuthStore(s => s.permissions); // Set<string> from Zustand
   return {
-    can: (p: string) => permissions.has(p),
-    canAny: (ps: string[]) => ps.some(p => permissions.has(p)),
+    can: (permission: string) => permissions.has(permission),
+    canAny: (perms: string[]) => perms.some(p => permissions.has(p)),
   };
 }
-// Usage: const { can } = usePermissions(); {can('appointments:cancel:any') && <CancelButton />}
+
+// Usage in component:
+const { can } = usePermissions();
+{can('appointments:cancel:any') && <CancelButton />}
 ```
 
-### Permission Caching
-Cache permission set in JWT payload + in-memory LRU (60s TTL). Invalidate on role change for all affected users. Redis if enabled.
+#### Permission Caching
 
-### Default System Roles (seed data)
+Cache the user permission set in the JWT payload (refreshed on role change) and in a short-lived server-side cache (Redis if available, otherwise in-memory LRU with 60s TTL). When an admin changes a role's permissions, invalidate the cache for all users who hold that role.
 
-| Role         | Key Permissions                                                                                           |
-| ------------ | --------------------------------------------------------------------------------------------------------- |
-| Super Admin  | All (`*`)                                                                                                 |
-| Receptionist | `appointments:create/read:all/cancel:any`, `queue:manage`, `patients:read:all`, `invoices:generate`       |
-| Doctor       | `appointments:read:own/update:own`, `patients:read:assigned`, `doctors:update:own`, `schedule:manage:own` |
-| Accountant   | `payments:read:all/refund`, `reports:view:financial`, `invoices:generate`                                 |
-| Patient      | `appointments:create/read:own/cancel:own`, `payments:read:own`                                            |
+#### Default System Roles & Permissions (Seed Data)
+
+Seed these on first run. Admins can modify permissions but cannot delete system roles.
+
+| Role             | Key Permissions                                                                                                                                     |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Super Admin**  | All permissions (`*`)                                                                                                                               |
+| **Receptionist** | `appointments:create`, `appointments:read:all`, `appointments:cancel:any`, `queue:manage`, `patients:read:all`, `doctors:read`, `invoices:generate` |
+| **Doctor**       | `appointments:read:own`, `appointments:update:own`, `patients:read:assigned`, `doctors:update:own`, `schedule:manage:own`                           |
+| **Accountant**   | `payments:read:all`, `payments:refund`, `reports:view:financial`, `invoices:generate`                                                               |
+| **Patient**      | `appointments:create`, `appointments:read:own`, `appointments:cancel:own`, `payments:read:own`                                                      |
+
+Super Admin can create additional custom roles (e.g., "Senior Receptionist", "Head Doctor", "Department Manager") and assign any combination of permissions.
+
+#### Admin UI for Permission Management
+
+Route: `/admin/roles`
+
+Features:
+- List all roles with user count
+- Create / rename / clone a role
+- Permission matrix: rows = permission groups, columns = roles, cells = toggle checkboxes
+- Cannot uncheck permissions from Super Admin role
+- Cannot delete system roles (isSystem=true)
+- Activity log of all permission changes (who changed what, when)
+- "Preview as role" — see any portal as if you held that role
 
 ---
 
-## PART 2 — UI PORTALS
+## PART 2: UI PORTALS BY PERMISSION
 
-Single Next.js app. Navigation filtered at render time by `usePermissions()`. No role name checks in components.
+The application renders **one unified Next.js app** with dynamic navigation and page access controlled by permissions. There is no separate codebase per role — the layout adapts based on `usePermissions()`.
 
-### Portal Routes
+### 2.1 Portal Layout System
+
 ```
-/admin          → requires settings:manage | reports:view:* | staff:manage
-/receptionist   → requires appointments:create AND queue:manage
-/doctor         → requires appointments:read:own
-/accountant     → requires payments:read:all | reports:view:financial
-/patient        → authenticated
-/display        → public (queue TV screen, no auth)
+/pages/
+├── admin/          # Requires: settings:manage OR reports:view:* OR staff:manage
+├── doctor/         # Requires: doctors:update:own OR appointments:read:own
+├── receptionist/   # Requires: appointments:create AND queue:manage
+├── accountant/     # Requires: payments:read:all OR reports:view:financial
+└── patient/        # Requires: authenticated + patient role
 ```
 
-### Admin Portal (`/admin`)
-- **Dashboard**: KPI cards (bookings, revenue, check-ins, no-shows), peak-hour chart, doctor load heatmap
-- **Doctor Management**: CRUD, chambers, schedules
-- **Staff & Roles**: Create accounts, assign roles, activity log
-- **Role/Permission Matrix**: Toggle grid grouped by resource — cannot uncheck Super Admin, cannot delete `isSystem` roles. "Preview as role" feature.
-- **Master Calendar**: All doctors, all slots, color by status, drag-to-reschedule
-- **System Settings**: Clinic branding, booking rules, fee config, holiday list, notification templates
+Each portal has its own layout component in `components/layouts/`. Navigation items are filtered at render time by `usePermissions()` — no hardcoded role checks.
 
-### Receptionist Portal (`/receptionist`)
-- **Fast Booking** (Command Palette): `/` key → full-screen modal → type to search doctor/specialty/patient → arrow keys → enter/tab → booking in <10s
-- **Today's Board**: Split view (appointment list + real-time queue). Color by status.
-- **Walk-in Entry**: Add walk-in to queue with estimated wait
-- **Check-in Panel**: QR scan or name/phone search → one-click check-in
+### 2.2 Super Admin Portal (`/admin`)
 
-### Doctor Portal (`/doctor`)
-- **Today's Patients**: Expandable rows with patient info, symptoms, medical history snapshot
-- **My Schedule**: Week view, read-only
-- **Availability Manager**: Weekly template, leave blocks, break times
-- **Profile Editor**: Bio, qualifications, photo
+**Sidebar navigation** (shown only if user has the relevant permission):
 
-### Accountant Portal (`/accountant`)
-- Daily Collection, Outstanding Payments, Refund Processing, Invoice Generator (PDF), Reports (export PDF/Excel)
+| Nav Item           | Required Permission                                    |
+| ------------------ | ------------------------------------------------------ |
+| Dashboard          | `reports:view:operational`                             |
+| Doctors            | `doctors:read`                                         |
+| Patients           | `patients:read:all`                                    |
+| Staff & Roles      | `staff:manage`                                         |
+| Role Permissions   | `roles:manage`                                         |
+| Appointments       | `appointments:read:all`                                |
+| Calendar (Master)  | `appointments:read:all`                                |
+| Queue Management   | `queue:manage`                                         |
+| Payments & Billing | `payments:read:all`                                    |
+| Reports            | `reports:view:financial` or `reports:view:operational` |
+| Settings           | `settings:manage`                                      |
+| Audit Logs         | `settings:manage`                                      |
 
-### Patient Portal (`/patient`)
-- **Booking Wizard** (multi-step): specialty/doctor → chamber → date → slot → notes → family member → payment → QR confirmation + add-to-calendar
-- My Appointments (upcoming: reschedule/cancel; past: download receipt, rebook)
-- Favourite Doctors, Family Members sub-accounts
+**Key admin UI screens**:
+- **Dashboard**: KPI cards (today's bookings, revenue, check-ins, no-shows), peak hour chart, doctor load heatmap
+- **Doctor Management**: List, create, edit, deactivate doctors; assign chambers; manage schedules
+- **Staff Management**: Create staff accounts, assign roles, view activity logs
+- **Role & Permission Matrix**: Full CRUD on roles; permission toggle grid grouped by resource
+- **Master Calendar**: All doctors, all slots, color-coded by status; drag-to-reschedule
+- **Batch Operations**: Batch cancel, doctor substitution, bulk notification send
+- **System Settings**: Clinic branding, booking rules, fee configuration, holiday list, notification templates, payment provider config
 
-### Queue Display (`/display`)
-- Public, no auth. "Now Serving" + next 3 tokens. Auto-refresh every 10s (SSE or polling). Full-screen, large text, configurable per chamber.
+### 2.3 Receptionist Portal (`/receptionist`)
+
+**Purpose**: High-speed booking operations. Optimized for keyboard use.
+
+| Nav Item         | Required Permission     |
+| ---------------- | ----------------------- |
+| Fast Booking     | `appointments:create`   |
+| Today's Schedule | `appointments:read:all` |
+| Walk-in Queue    | `queue:manage`          |
+| Check-in         | `queue:manage`          |
+| Patient Search   | `patients:read:all`     |
+| Cash Register    | `payments:create`       |
+| Appointments     | `appointments:read:all` |
+
+**Key UI screens**:
+- **Fast Booking ("Command Palette")**: `/` key opens a full-screen modal. Type to search doctor, specialty, or patient name. Arrow keys navigate. Enter selects. Tab moves between doctor → date → slot → confirm. Entire booking in < 10 seconds.
+- **Today's Board**: Split view — left: appointment list by time, right: real-time queue display. Color-coded rows by status.
+- **Walk-in Entry**: Quick-add walk-in patients to queue with estimated wait time shown immediately.
+- **Check-in & Payment Panel**: Scan QR or search patient name/phone. Register cash received at counter, mark as "Paid", and one-click check-in. Late arrival flagging with override.
+
+### 2.4 Doctor Portal (`/doctor`)
+
+**Purpose**: View schedule, manage availability, see patient notes before sessions.
+
+| Nav Item         | Required Permission      |
+| ---------------- | ------------------------ |
+| My Schedule      | `appointments:read:own`  |
+| Today's Patients | `appointments:read:own`  |
+| My Availability  | `schedule:manage:own`    |
+| My Profile       | `doctors:update:own`     |
+| Patient Notes    | `patients:read:assigned` |
+
+**Key UI screens**:
+- **Today's Patients**: List of today's appointments in time order. Expandable rows showing patient name, reason/symptoms (if provided), medical history snapshot, and appointment notes.
+- **My Schedule Calendar**: Week view of own appointments. Click slot to view details. Cannot create/edit appointments (that's receptionist).
+- **Availability Manager**: Set weekly template, block leave days, configure break times. Changes immediately reflected in the live slot engine.
+- **Profile Editor**: Update bio, qualifications, photo. Chamber assignments managed by admin.
+
+### 2.5 Accountant Portal (`/accountant`)
+
+**Purpose**: Financial records only. No access to clinical data.
+
+| Nav Item             | Required Permission      |
+| -------------------- | ------------------------ |
+| Daily Collection     | `payments:read:all`      |
+| Outstanding Payments | `payments:read:all`      |
+| Cash Register        | `payments:create`        |
+| Refunds              | `payments:refund`        |
+| Invoices             | `invoices:generate`      |
+| Financial Reports    | `reports:view:financial` |
+
+**Key UI screens**:
+- **Daily Collection Summary**: Breakdown by payment method (bKash/Nagad/Cash/Card), by doctor, totals. Date picker.
+- **Outstanding Payments**: List of "Pay Later" appointments not yet settled. Filter by doctor, date range.
+- **Cash Register**: Screen to register offline/cash payments collected at the counter for outstanding invoices.
+- **Refund Processing**: List of cancellations eligible for refund. Approve/reject with reason. Auto-triggers payment gateway refund call.
+- **Invoice Generator**: Select appointment(s) → generate branded PDF invoice → download or email to patient.
+- **Reports**: Revenue chart by period, refund rate, unpaid tracking. Export to PDF/Excel.
+
+### 2.6 Patient Portal (`/patient`)
+
+**Purpose**: Self-service. Clean, mobile-first design.
+
+| Nav Item         | Required Permission     |
+| ---------------- | ----------------------- |
+| Book Appointment | `appointments:create`   |
+| My Appointments  | `appointments:read:own` |
+| My Family        | authenticated           |
+| Payments         | `payments:read:own`     |
+| Profile          | authenticated           |
+
+**Key UI screens**:
+- **Booking Flow** (multi-step wizard):
+  1. Select specialty / doctor (searchable, filterable, shows rating and fee)
+  2. Select chamber/location
+  3. Pick date (calendar, grayed-out unavailable dates)
+  4. Pick time slot (show estimated duration)
+  5. Add appointment notes / symptoms (optional)
+  6. Select family member or self
+  7. Payment (bKash / Nagad / Card / Pay Later)
+  8. Confirmation screen with QR code, Google Maps link, add-to-calendar button
+- **My Appointments**: Upcoming and past. Upcoming: reschedule/cancel buttons (within policy). Past: download receipt, rebook button.
+- **Favourite Doctors**: One-tap to start a booking with a previously visited doctor.
+- **Family Members**: Add/remove sub-accounts. Book on their behalf.
+
+### 2.7 Queue Display Screen (`/display`)
+
+**Purpose**: Public TV/kiosk screen in the waiting room. No authentication required. Read-only.
+
+- Shows: "Now Serving" (patient token), next 3 tokens in queue
+- Auto-refreshes every 10 seconds via polling or SSE
+- Full-screen mode, large text, high contrast
+- Configurable per chamber/room
 
 ---
 
@@ -263,24 +480,24 @@ STRIPE_SECRET_KEY= STRIPE_WEBHOOK_SECRET= STRIPE_PUBLISHABLE_KEY=
 
 ## PART 5 — TECH STACK
 
-| Layer         | Technology                | Rule                                                                                                                                                                                                      |
-| ------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Framework     | Next.js 16 App Router     | Server Components default. `"use client"` only for interactivity/hooks/GSAP.                                                                                                                              |
-| Language      | TypeScript strict         | No `any`. Explicit interfaces everywhere.                                                                                                                                                                 |
-| Styling       | Tailwind CSS v4           | No inline styles. Dark mode on all portals.                                                                                                                                                               |
-| UI            | shadcn/ui                 | **All UI from shadcn primitives.** See `.agents/skills/shadcn/SKILL.md`.                                                                                                                                  |
-| Forms         | React Hook Form + Zod     | `zodResolver` on every form. Schemas in `lib/zod-schemas/`.                                                                                                                                               |
-| Server State  | TanStack Query            | All API calls via RQ hooks. Never raw `fetch` in components.                                                                                                                                              |
-| Client State  | Zustand                   | Auth, permissions, booking flow, UI modals/toasts.                                                                                                                                                        |
-| Auth          | NextAuth.js v5            | Phone OTP + Google/Facebook OAuth. JWT only.                                                                                                                                                              |
-| DB (dev)      | SQLite via better-sqlite3 | `DB_TYPE=sqlite`. Prisma adapter: `PrismaBetterSqlite3`.                                                                                                                                                  |
-| DB (prod)     | PostgreSQL via pg         | `DB_TYPE=postgres`. Prisma adapter: `PrismaPg`. Dockerized.                                                                                                                                               |
-| ORM           | Prisma 7+                 | Client output: `app/generated/prisma`. Singleton in `lib/prisma.ts`.                                                                                                                                      |
-| Auth/Perms    | PBAC (Part 1)             | Never check role names. Always check permission keys.                                                                                                                                                     |
-| Notifications | Modular (Part 3)          | Always via `NotificationService`.                                                                                                                                                                         |
-| Payments      | Modular (Part 4)          | Always via `PaymentService`.                                                                                                                                                                              |
-| i18n          | Hybrid Approach           | Client Components: `react-i18next` (`useTranslation`). Server Components: `lib/i18n-server.ts` (`getIsEn()`) reading `NEXT_LOCALE` cookie. Toggle sets cookie + `router.refresh()`. Default locale: `bn`. |
-| Animation     | GSAP                      | All animation via `lib/animations/gsap.ts`. Never Framer Motion.                                                                                                                                          |
+| Layer         | Technology                | Rule                                                                         |
+| ------------- | ------------------------- | ---------------------------------------------------------------------------- |
+| Framework     | Next.js 16 App Router     | Server Components default. `"use client"` only for interactivity/hooks/GSAP. |
+| Language      | TypeScript strict         | No `any`. Explicit interfaces everywhere.                                    |
+| Styling       | Tailwind CSS v4           | No inline styles. Dark mode on all portals.                                  |
+| UI            | shadcn/ui                 | **All UI from shadcn primitives.** See `.agents/skills/shadcn/SKILL.md`.     |
+| Forms         | React Hook Form + Zod     | `zodResolver` on every form. Schemas in `lib/zod-schemas/`.                  |
+| Server State  | TanStack Query            | All API calls via RQ hooks. Never raw `fetch` in components.                 |
+| Client State  | Zustand                   | Auth, permissions, booking flow, UI modals/toasts.                           |
+| Auth          | NextAuth.js v5            | Phone OTP + Google/Facebook OAuth. JWT only.                                 |
+| DB (dev)      | SQLite via better-sqlite3 | `DB_TYPE=sqlite`. Prisma adapter: `PrismaBetterSqlite3`.                     |
+| DB (prod)     | PostgreSQL via pg         | `DB_TYPE=postgres`. Prisma adapter: `PrismaPg`. Dockerized.                  |
+| ORM           | Prisma 7+                 | Client output: `app/generated/prisma`. Singleton in `lib/prisma.ts`.         |
+| Auth/Perms    | PBAC (Part 1)             | Never check role names. Always check permission keys.                        |
+| Notifications | Modular (Part 3)          | Always via `NotificationService`.                                            |
+| Payments      | Modular (Part 4)          | Always via `PaymentService`.                                                 |
+| i18n          | next-i18next              | `useTranslation()` everywhere. Default locale: `bn`.                         |
+| Animation     | GSAP                      | All animation via `lib/animations/gsap.ts`. Never Framer Motion.             |
 
 ---
 

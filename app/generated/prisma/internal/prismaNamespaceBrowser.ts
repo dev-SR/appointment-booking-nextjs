@@ -51,8 +51,40 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
+  Permission: 'Permission',
+  Role: 'Role',
+  RolePermission: 'RolePermission',
+  UserRole: 'UserRole',
   User: 'User',
-  Post: 'Post'
+  Account: 'Account',
+  Session: 'Session',
+  VerificationToken: 'VerificationToken',
+  OtpVerification: 'OtpVerification',
+  Doctor: 'Doctor',
+  Specialty: 'Specialty',
+  Patient: 'Patient',
+  FamilyMember: 'FamilyMember',
+  PatientFavourite: 'PatientFavourite',
+  PatientCredit: 'PatientCredit',
+  Chamber: 'Chamber',
+  DoctorChamber: 'DoctorChamber',
+  DoctorService: 'DoctorService',
+  Schedule: 'Schedule',
+  ScheduleException: 'ScheduleException',
+  Holiday: 'Holiday',
+  Appointment: 'Appointment',
+  RecurringRule: 'RecurringRule',
+  QueueEntry: 'QueueEntry',
+  Payment: 'Payment',
+  BookingRule: 'BookingRule',
+  PricingRule: 'PricingRule',
+  Coupon: 'Coupon',
+  CouponUsage: 'CouponUsage',
+  NotificationTemplate: 'NotificationTemplate',
+  NotificationLog: 'NotificationLog',
+  AuditLogSetting: 'AuditLogSetting',
+  AuditLog: 'AuditLog',
+  SystemSetting: 'SystemSetting'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -68,24 +100,540 @@ export const TransactionIsolationLevel = runtime.makeStrictEnum({
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
 
 
+export const PermissionScalarFieldEnum = {
+  id: 'id',
+  key: 'key',
+  displayName: 'displayName',
+  group: 'group',
+  description: 'description',
+  createdAt: 'createdAt'
+} as const
+
+export type PermissionScalarFieldEnum = (typeof PermissionScalarFieldEnum)[keyof typeof PermissionScalarFieldEnum]
+
+
+export const RoleScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  displayName: 'displayName',
+  isSystem: 'isSystem',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type RoleScalarFieldEnum = (typeof RoleScalarFieldEnum)[keyof typeof RoleScalarFieldEnum]
+
+
+export const RolePermissionScalarFieldEnum = {
+  roleId: 'roleId',
+  permissionId: 'permissionId',
+  grantedAt: 'grantedAt',
+  grantedBy: 'grantedBy'
+} as const
+
+export type RolePermissionScalarFieldEnum = (typeof RolePermissionScalarFieldEnum)[keyof typeof RolePermissionScalarFieldEnum]
+
+
+export const UserRoleScalarFieldEnum = {
+  userId: 'userId',
+  roleId: 'roleId',
+  assignedAt: 'assignedAt',
+  assignedBy: 'assignedBy'
+} as const
+
+export type UserRoleScalarFieldEnum = (typeof UserRoleScalarFieldEnum)[keyof typeof UserRoleScalarFieldEnum]
+
+
 export const UserScalarFieldEnum = {
   id: 'id',
+  phone: 'phone',
   email: 'email',
-  name: 'name'
+  passwordHash: 'passwordHash',
+  nameEn: 'nameEn',
+  nameBn: 'nameBn',
+  profileImageUrl: 'profileImageUrl',
+  isActive: 'isActive',
+  isPhoneVerified: 'isPhoneVerified',
+  isEmailVerified: 'isEmailVerified',
+  lastLoginAt: 'lastLoginAt',
+  preferredLocale: 'preferredLocale',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
-export const PostScalarFieldEnum = {
+export const AccountScalarFieldEnum = {
   id: 'id',
-  title: 'title',
-  content: 'content',
-  published: 'published',
-  authorId: 'authorId'
+  userId: 'userId',
+  type: 'type',
+  provider: 'provider',
+  providerAccountId: 'providerAccountId',
+  refresh_token: 'refresh_token',
+  access_token: 'access_token',
+  expires_at: 'expires_at',
+  token_type: 'token_type',
+  scope: 'scope',
+  id_token: 'id_token',
+  session_state: 'session_state'
 } as const
 
-export type PostScalarFieldEnum = (typeof PostScalarFieldEnum)[keyof typeof PostScalarFieldEnum]
+export type AccountScalarFieldEnum = (typeof AccountScalarFieldEnum)[keyof typeof AccountScalarFieldEnum]
+
+
+export const SessionScalarFieldEnum = {
+  id: 'id',
+  sessionToken: 'sessionToken',
+  userId: 'userId',
+  expires: 'expires'
+} as const
+
+export type SessionScalarFieldEnum = (typeof SessionScalarFieldEnum)[keyof typeof SessionScalarFieldEnum]
+
+
+export const VerificationTokenScalarFieldEnum = {
+  identifier: 'identifier',
+  token: 'token',
+  expires: 'expires'
+} as const
+
+export type VerificationTokenScalarFieldEnum = (typeof VerificationTokenScalarFieldEnum)[keyof typeof VerificationTokenScalarFieldEnum]
+
+
+export const OtpVerificationScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  phone: 'phone',
+  otp: 'otp',
+  purpose: 'purpose',
+  expiresAt: 'expiresAt',
+  verifiedAt: 'verifiedAt',
+  attempts: 'attempts',
+  createdAt: 'createdAt'
+} as const
+
+export type OtpVerificationScalarFieldEnum = (typeof OtpVerificationScalarFieldEnum)[keyof typeof OtpVerificationScalarFieldEnum]
+
+
+export const DoctorScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  registrationNumber: 'registrationNumber',
+  specialtyId: 'specialtyId',
+  titleEn: 'titleEn',
+  titleBn: 'titleBn',
+  bioEn: 'bioEn',
+  bioBn: 'bioBn',
+  qualificationsEn: 'qualificationsEn',
+  qualificationsBn: 'qualificationsBn',
+  experienceYears: 'experienceYears',
+  isAvailable: 'isAvailable',
+  consultationFee: 'consultationFee',
+  followUpFee: 'followUpFee',
+  followUpValidDays: 'followUpValidDays',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type DoctorScalarFieldEnum = (typeof DoctorScalarFieldEnum)[keyof typeof DoctorScalarFieldEnum]
+
+
+export const SpecialtyScalarFieldEnum = {
+  id: 'id',
+  nameEn: 'nameEn',
+  nameBn: 'nameBn',
+  iconUrl: 'iconUrl',
+  description: 'description',
+  isActive: 'isActive',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SpecialtyScalarFieldEnum = (typeof SpecialtyScalarFieldEnum)[keyof typeof SpecialtyScalarFieldEnum]
+
+
+export const PatientScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  dateOfBirth: 'dateOfBirth',
+  gender: 'gender',
+  bloodGroup: 'bloodGroup',
+  addressEn: 'addressEn',
+  addressBn: 'addressBn',
+  emergencyContact: 'emergencyContact',
+  medicalHistory: 'medicalHistory',
+  allergies: 'allergies',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PatientScalarFieldEnum = (typeof PatientScalarFieldEnum)[keyof typeof PatientScalarFieldEnum]
+
+
+export const FamilyMemberScalarFieldEnum = {
+  id: 'id',
+  patientId: 'patientId',
+  nameEn: 'nameEn',
+  nameBn: 'nameBn',
+  relationship: 'relationship',
+  dateOfBirth: 'dateOfBirth',
+  gender: 'gender',
+  phone: 'phone',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type FamilyMemberScalarFieldEnum = (typeof FamilyMemberScalarFieldEnum)[keyof typeof FamilyMemberScalarFieldEnum]
+
+
+export const PatientFavouriteScalarFieldEnum = {
+  patientId: 'patientId',
+  doctorId: 'doctorId',
+  createdAt: 'createdAt'
+} as const
+
+export type PatientFavouriteScalarFieldEnum = (typeof PatientFavouriteScalarFieldEnum)[keyof typeof PatientFavouriteScalarFieldEnum]
+
+
+export const PatientCreditScalarFieldEnum = {
+  id: 'id',
+  patientId: 'patientId',
+  amount: 'amount',
+  reason: 'reason',
+  expiresAt: 'expiresAt',
+  usedAt: 'usedAt',
+  usedForId: 'usedForId',
+  createdAt: 'createdAt'
+} as const
+
+export type PatientCreditScalarFieldEnum = (typeof PatientCreditScalarFieldEnum)[keyof typeof PatientCreditScalarFieldEnum]
+
+
+export const ChamberScalarFieldEnum = {
+  id: 'id',
+  nameEn: 'nameEn',
+  nameBn: 'nameBn',
+  addressEn: 'addressEn',
+  addressBn: 'addressBn',
+  phone: 'phone',
+  latitude: 'latitude',
+  longitude: 'longitude',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ChamberScalarFieldEnum = (typeof ChamberScalarFieldEnum)[keyof typeof ChamberScalarFieldEnum]
+
+
+export const DoctorChamberScalarFieldEnum = {
+  id: 'id',
+  doctorId: 'doctorId',
+  chamberId: 'chamberId',
+  isPrimary: 'isPrimary',
+  createdAt: 'createdAt'
+} as const
+
+export type DoctorChamberScalarFieldEnum = (typeof DoctorChamberScalarFieldEnum)[keyof typeof DoctorChamberScalarFieldEnum]
+
+
+export const DoctorServiceScalarFieldEnum = {
+  id: 'id',
+  doctorId: 'doctorId',
+  nameEn: 'nameEn',
+  nameBn: 'nameBn',
+  durationMinutes: 'durationMinutes',
+  fee: 'fee',
+  preBufferMinutes: 'preBufferMinutes',
+  postBufferMinutes: 'postBufferMinutes',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type DoctorServiceScalarFieldEnum = (typeof DoctorServiceScalarFieldEnum)[keyof typeof DoctorServiceScalarFieldEnum]
+
+
+export const ScheduleScalarFieldEnum = {
+  id: 'id',
+  doctorId: 'doctorId',
+  dayOfWeek: 'dayOfWeek',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  slotIntervalMins: 'slotIntervalMins',
+  maxPatients: 'maxPatients',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ScheduleScalarFieldEnum = (typeof ScheduleScalarFieldEnum)[keyof typeof ScheduleScalarFieldEnum]
+
+
+export const ScheduleExceptionScalarFieldEnum = {
+  id: 'id',
+  doctorId: 'doctorId',
+  date: 'date',
+  exceptionType: 'exceptionType',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  reason: 'reason',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ScheduleExceptionScalarFieldEnum = (typeof ScheduleExceptionScalarFieldEnum)[keyof typeof ScheduleExceptionScalarFieldEnum]
+
+
+export const HolidayScalarFieldEnum = {
+  id: 'id',
+  date: 'date',
+  nameEn: 'nameEn',
+  nameBn: 'nameBn',
+  isRecurring: 'isRecurring',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type HolidayScalarFieldEnum = (typeof HolidayScalarFieldEnum)[keyof typeof HolidayScalarFieldEnum]
+
+
+export const AppointmentScalarFieldEnum = {
+  id: 'id',
+  serialNumber: 'serialNumber',
+  patientId: 'patientId',
+  doctorId: 'doctorId',
+  chamberId: 'chamberId',
+  familyMemberId: 'familyMemberId',
+  date: 'date',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  status: 'status',
+  type: 'type',
+  isFollowUp: 'isFollowUp',
+  originalApptId: 'originalApptId',
+  symptoms: 'symptoms',
+  notes: 'notes',
+  consultationFee: 'consultationFee',
+  discountAmount: 'discountAmount',
+  finalFee: 'finalFee',
+  bookedById: 'bookedById',
+  checkedInAt: 'checkedInAt',
+  completedAt: 'completedAt',
+  cancelledAt: 'cancelledAt',
+  cancelReason: 'cancelReason',
+  cancelledById: 'cancelledById',
+  recurringRuleId: 'recurringRuleId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AppointmentScalarFieldEnum = (typeof AppointmentScalarFieldEnum)[keyof typeof AppointmentScalarFieldEnum]
+
+
+export const RecurringRuleScalarFieldEnum = {
+  id: 'id',
+  patientId: 'patientId',
+  frequency: 'frequency',
+  interval: 'interval',
+  daysOfWeek: 'daysOfWeek',
+  occurrences: 'occurrences',
+  endDate: 'endDate',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type RecurringRuleScalarFieldEnum = (typeof RecurringRuleScalarFieldEnum)[keyof typeof RecurringRuleScalarFieldEnum]
+
+
+export const QueueEntryScalarFieldEnum = {
+  id: 'id',
+  appointmentId: 'appointmentId',
+  doctorId: 'doctorId',
+  chamberId: 'chamberId',
+  date: 'date',
+  tokenNumber: 'tokenNumber',
+  patientName: 'patientName',
+  patientPhone: 'patientPhone',
+  isWalkIn: 'isWalkIn',
+  status: 'status',
+  estimatedTime: 'estimatedTime',
+  calledAt: 'calledAt',
+  servedAt: 'servedAt',
+  skippedAt: 'skippedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type QueueEntryScalarFieldEnum = (typeof QueueEntryScalarFieldEnum)[keyof typeof QueueEntryScalarFieldEnum]
+
+
+export const PaymentScalarFieldEnum = {
+  id: 'id',
+  appointmentId: 'appointmentId',
+  amount: 'amount',
+  currency: 'currency',
+  status: 'status',
+  provider: 'provider',
+  gatewayTrxId: 'gatewayTrxId',
+  gatewayResponse: 'gatewayResponse',
+  paidAt: 'paidAt',
+  refundedAt: 'refundedAt',
+  refundAmount: 'refundAmount',
+  refundReason: 'refundReason',
+  refundedById: 'refundedById',
+  initiatedById: 'initiatedById',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PaymentScalarFieldEnum = (typeof PaymentScalarFieldEnum)[keyof typeof PaymentScalarFieldEnum]
+
+
+export const BookingRuleScalarFieldEnum = {
+  id: 'id',
+  minLeadTimeMinutes: 'minLeadTimeMinutes',
+  maxAdvanceBookingDays: 'maxAdvanceBookingDays',
+  sameDayCutoffTime: 'sameDayCutoffTime',
+  cancellationDeadlineMins: 'cancellationDeadlineMins',
+  rescheduleDeadlineMins: 'rescheduleDeadlineMins',
+  maxActiveBookings: 'maxActiveBookings',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BookingRuleScalarFieldEnum = (typeof BookingRuleScalarFieldEnum)[keyof typeof BookingRuleScalarFieldEnum]
+
+
+export const PricingRuleScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  ruleType: 'ruleType',
+  adjustmentType: 'adjustmentType',
+  adjustmentValue: 'adjustmentValue',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  daysOfWeek: 'daysOfWeek',
+  priority: 'priority',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PricingRuleScalarFieldEnum = (typeof PricingRuleScalarFieldEnum)[keyof typeof PricingRuleScalarFieldEnum]
+
+
+export const CouponScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  discountType: 'discountType',
+  discountValue: 'discountValue',
+  maxUses: 'maxUses',
+  usedCount: 'usedCount',
+  minOrderAmount: 'minOrderAmount',
+  maxDiscount: 'maxDiscount',
+  validFrom: 'validFrom',
+  validUntil: 'validUntil',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CouponScalarFieldEnum = (typeof CouponScalarFieldEnum)[keyof typeof CouponScalarFieldEnum]
+
+
+export const CouponUsageScalarFieldEnum = {
+  id: 'id',
+  couponId: 'couponId',
+  appointmentId: 'appointmentId',
+  discountApplied: 'discountApplied',
+  createdAt: 'createdAt'
+} as const
+
+export type CouponUsageScalarFieldEnum = (typeof CouponUsageScalarFieldEnum)[keyof typeof CouponUsageScalarFieldEnum]
+
+
+export const NotificationTemplateScalarFieldEnum = {
+  id: 'id',
+  key: 'key',
+  channel: 'channel',
+  subjectEn: 'subjectEn',
+  subjectBn: 'subjectBn',
+  bodyEn: 'bodyEn',
+  bodyBn: 'bodyBn',
+  variables: 'variables',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type NotificationTemplateScalarFieldEnum = (typeof NotificationTemplateScalarFieldEnum)[keyof typeof NotificationTemplateScalarFieldEnum]
+
+
+export const NotificationLogScalarFieldEnum = {
+  id: 'id',
+  templateKey: 'templateKey',
+  channel: 'channel',
+  recipient: 'recipient',
+  subject: 'subject',
+  body: 'body',
+  status: 'status',
+  errorMessage: 'errorMessage',
+  sentAt: 'sentAt',
+  createdAt: 'createdAt'
+} as const
+
+export type NotificationLogScalarFieldEnum = (typeof NotificationLogScalarFieldEnum)[keyof typeof NotificationLogScalarFieldEnum]
+
+
+export const AuditLogSettingScalarFieldEnum = {
+  id: 'id',
+  resourceType: 'resourceType',
+  isEnabled: 'isEnabled',
+  retentionDays: 'retentionDays',
+  updatedAt: 'updatedAt',
+  updatedBy: 'updatedBy'
+} as const
+
+export type AuditLogSettingScalarFieldEnum = (typeof AuditLogSettingScalarFieldEnum)[keyof typeof AuditLogSettingScalarFieldEnum]
+
+
+export const AuditLogScalarFieldEnum = {
+  id: 'id',
+  createdAt: 'createdAt',
+  actorId: 'actorId',
+  actorName: 'actorName',
+  actorRole: 'actorRole',
+  actorIp: 'actorIp',
+  action: 'action',
+  resourceType: 'resourceType',
+  resourceId: 'resourceId',
+  resourceLabel: 'resourceLabel',
+  previousValue: 'previousValue',
+  newValue: 'newValue',
+  changedFields: 'changedFields',
+  metadata: 'metadata',
+  requestId: 'requestId'
+} as const
+
+export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
+
+
+export const SystemSettingScalarFieldEnum = {
+  id: 'id',
+  key: 'key',
+  value: 'value',
+  group: 'group',
+  updatedAt: 'updatedAt',
+  updatedBy: 'updatedBy'
+} as const
+
+export type SystemSettingScalarFieldEnum = (typeof SystemSettingScalarFieldEnum)[keyof typeof SystemSettingScalarFieldEnum]
 
 
 export const SortOrder = {

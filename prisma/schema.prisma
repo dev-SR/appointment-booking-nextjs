@@ -4,22 +4,724 @@ generator client {
 }
 
 datasource db {
-  // provider = "postgresql"
+  // Switch to "postgresql" for production
   provider = "sqlite"
 }
 
-model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
-  posts Post[]
+// ==========================================
+// PART 1: AUTHORIZATION (PBAC)
+// ==========================================
+
+model Permission {
+  id              String           @id @default(cuid())
+  key             String           @unique // e.g., "appointments:cancel:any"
+  displayName     String
+  group           String // UI grouping e.g., "Appointments"
+  description     String?
+  createdAt       DateTime         @default(now())
+  rolePermissions RolePermission[]
 }
 
-model Post {
-  id        Int     @id @default(autoincrement())
-  title     String
-  content   String?
-  published Boolean @default(false)
-  authorId  Int
-  author    User    @relation(fields: [authorId], references: [id])
+model Role {
+  id              String           @id @default(cuid())
+  name            String           @unique
+  displayName     String
+  isSystem        Boolean          @default(false) // system roles cannot be deleted
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  grantedAt    DateTime   @default(now())
+  grantedBy    String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  assignedBy String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+// ==========================================
+// PART 2: USER & AUTHENTICATION
+// ==========================================
+
+model User {
+  id                 String    @id @default(cuid())
+  phone              String    @unique // Primary identifier: +8801XXXXXXXXX
+  email              String?   @unique
+  passwordHash       String? // For email/password login
+  nameEn             String
+  nameBn             String?
+  profileImageUrl    String?
+  isActive           Boolean   @default(true)
+  isPhoneVerified    Boolean   @default(false)
+  isEmailVerified    Boolean   @default(false)
+  lastLoginAt        DateTime?
+  preferredLocale    String    @default("bn") // "bn" or "en"
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  // Relations
+  userRoles          UserRole[]
+  accounts           Account[]
+  sessions           Session[]
+  doctor             Doctor?
+  patient            Patient?
+  otpVerifications   OtpVerification[]
+  appointmentsBooked Appointment[]      @relation("BookedBy")
+  paymentsInitiated  Payment[]          @relation("PaymentInitiatedBy")
+  auditLogs          AuditLog[]         @relation("AuditActor")
+
+  @@index([phone])
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String // "oauth" | "oidc" | "email"
+  provider          String // "google" | "facebook" | "credentials"
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model OtpVerification {
+  id         String   @id @default(cuid())
+  userId     String?
+  phone      String
+  otp        String
+  purpose    String // "login" | "register" | "cancel_appointment" | "payment"
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  attempts   Int      @default(0)
+  createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([phone, purpose])
+}
+
+// ==========================================
+// PART 3: DOCTOR & PATIENT
+// ==========================================
+
+model Doctor {
+  id                   String               @id @default(cuid())
+  userId               String               @unique
+  registrationNumber   String               @unique // BMDC registration
+  specialtyId          String
+  titleEn              String // "Dr.", "Prof. Dr."
+  titleBn              String?
+  bioEn                String?
+  bioBn                String?
+  qualificationsEn     String // "MBBS, FCPS, MD"
+  qualificationsBn     String?
+  experienceYears      Int
+  isAvailable          Boolean              @default(true)
+  consultationFee      Int // Base fee in paisa (BDT)
+  followUpFee          Int // Follow-up fee in paisa
+  followUpValidDays    Int                  @default(30)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  // Relations
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialty            Specialty            @relation(fields: [specialtyId], references: [id])
+  chambers             DoctorChamber[]
+  services             DoctorService[]
+  schedules            Schedule[]
+  scheduleExceptions   ScheduleException[]
+  appointments         Appointment[]
+  queueEntries         QueueEntry[]
+  favouritedByPatients PatientFavourite[]
+
+  @@index([specialtyId])
+}
+
+model Specialty {
+  id          String   @id @default(cuid())
+  nameEn      String   @unique
+  nameBn      String?
+  iconUrl     String?
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  doctors     Doctor[]
+}
+
+model Patient {
+  id                  String             @id @default(cuid())
+  userId              String             @unique
+  dateOfBirth         DateTime?
+  gender              Gender?
+  bloodGroup          BloodGroup?
+  addressEn           String?
+  addressBn           String?
+  emergencyContact    String? // Phone number
+  medicalHistory      String? // JSON string for structured data
+  allergies           String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  // Relations
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments        Appointment[]
+  familyMembers       FamilyMember[]
+  patientCredits      PatientCredit[]
+  favouriteDoctors    PatientFavourite[]
+  recurringRules      RecurringRule[]
+}
+
+model FamilyMember {
+  id           String        @id @default(cuid())
+  patientId    String
+  nameEn       String
+  nameBn       String?
+  relationship String // "spouse", "child", "parent", etc.
+  dateOfBirth  DateTime?
+  gender       Gender?
+  phone        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@index([patientId])
+}
+
+model PatientFavourite {
+  patientId String
+  doctorId  String
+  createdAt DateTime @default(now())
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@id([patientId, doctorId])
+}
+
+model PatientCredit {
+  id          String    @id @default(cuid())
+  patientId   String
+  amount      Int // In paisa
+  reason      String // "referral", "refund", "promo", etc.
+  expiresAt   DateTime?
+  usedAt      DateTime?
+  usedForId   String? // appointmentId if used
+  createdAt   DateTime  @default(now())
+  patient     Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+}
+
+// ==========================================
+// PART 4: CHAMBER & SCHEDULE
+// ==========================================
+
+model Chamber {
+  id            String          @id @default(cuid())
+  nameEn        String
+  nameBn        String?
+  addressEn     String
+  addressBn     String?
+  phone         String?
+  latitude      Float?
+  longitude     Float?
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  doctorChamber DoctorChamber[]
+  appointments  Appointment[]
+  queueEntries  QueueEntry[]
+}
+
+model DoctorChamber {
+  id        String   @id @default(cuid())
+  doctorId  String
+  chamberId String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  chamber   Chamber  @relation(fields: [chamberId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, chamberId])
+  @@index([doctorId])
+  @@index([chamberId])
+}
+
+model DoctorService {
+  id                 String   @id @default(cuid())
+  doctorId           String
+  nameEn             String
+  nameBn             String?
+  durationMinutes    Int      @default(15)
+  fee                Int // In paisa
+  preBufferMinutes   Int      @default(0)
+  postBufferMinutes  Int      @default(0)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  doctor             Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+}
+
+model Schedule {
+  id               String   @id @default(cuid())
+  doctorId         String
+  dayOfWeek        Int // 0 = Sunday, 6 = Saturday
+  startTime        String // "09:00" (24h format)
+  endTime          String // "17:00"
+  slotIntervalMins Int      @default(15)
+  maxPatients      Int? // Max patients per slot (null = 1)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  doctor           Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, dayOfWeek])
+}
+
+model ScheduleException {
+  id              String        @id @default(cuid())
+  doctorId        String
+  date            DateTime // Specific date
+  exceptionType   ExceptionType
+  startTime       String? // Override start time
+  endTime         String? // Override end time
+  reason          String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  doctor          Doctor        @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, date])
+}
+
+model Holiday {
+  id          String   @id @default(cuid())
+  date        DateTime
+  nameEn      String
+  nameBn      String?
+  isRecurring Boolean  @default(false) // Repeat annually
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+}
+
+// ==========================================
+// PART 5: APPOINTMENT & BOOKING
+// ==========================================
+
+model Appointment {
+  id              String            @id @default(cuid())
+  serialNumber    Int // Daily serial for queue
+  patientId       String
+  doctorId        String
+  chamberId       String
+  familyMemberId  String?
+  date            DateTime // Appointment date (date only)
+  startTime       String // "09:00"
+  endTime         String // "09:15"
+  status          AppointmentStatus @default(PENDING)
+  type            AppointmentType   @default(CONSULTATION)
+  isFollowUp      Boolean           @default(false)
+  originalApptId  String? // For follow-ups, reference to original
+  symptoms        String?
+  notes           String?
+  consultationFee Int // Fee at time of booking (paisa)
+  discountAmount  Int               @default(0)
+  finalFee        Int // After discounts/credits
+  bookedById      String
+  checkedInAt     DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  cancelledById   String?
+  recurringRuleId String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  // Relations
+  patient         Patient           @relation(fields: [patientId], references: [id])
+  doctor          Doctor            @relation(fields: [doctorId], references: [id])
+  chamber         Chamber           @relation(fields: [chamberId], references: [id])
+  familyMember    FamilyMember?     @relation(fields: [familyMemberId], references: [id])
+  bookedBy        User              @relation("BookedBy", fields: [bookedById], references: [id])
+  originalAppt    Appointment?      @relation("FollowUp", fields: [originalApptId], references: [id])
+  followUps       Appointment[]     @relation("FollowUp")
+  recurringRule   RecurringRule?    @relation(fields: [recurringRuleId], references: [id])
+  payment         Payment?
+  queueEntry      QueueEntry?
+  couponUsage     CouponUsage?
+
+  @@index([patientId])
+  @@index([doctorId, date])
+  @@index([chamberId, date])
+  @@index([status])
+  @@index([date])
+}
+
+model RecurringRule {
+  id           String        @id @default(cuid())
+  patientId    String
+  frequency    Frequency // DAILY, WEEKLY, MONTHLY
+  interval     Int           @default(1) // Every N weeks/months
+  daysOfWeek   String? // JSON array [0,2,4] for specific days
+  occurrences  Int? // Number of occurrences (null = use endDate)
+  endDate      DateTime?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@index([patientId])
+}
+
+// ==========================================
+// PART 6: QUEUE MANAGEMENT
+// ==========================================
+
+model QueueEntry {
+  id            String      @id @default(cuid())
+  appointmentId String?     @unique
+  doctorId      String
+  chamberId     String
+  date          DateTime
+  tokenNumber   Int
+  patientName   String
+  patientPhone  String
+  isWalkIn      Boolean     @default(false)
+  status        QueueStatus @default(WAITING)
+  estimatedTime DateTime?
+  calledAt      DateTime?
+  servedAt      DateTime?
+  skippedAt     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  doctor        Doctor      @relation(fields: [doctorId], references: [id])
+  chamber       Chamber     @relation(fields: [chamberId], references: [id])
+
+  @@index([doctorId, chamberId, date])
+  @@index([status])
+}
+
+// ==========================================
+// PART 7: PAYMENT
+// ==========================================
+
+model Payment {
+  id               String        @id @default(cuid())
+  appointmentId    String        @unique
+  amount           Int // In paisa
+  currency         String        @default("BDT")
+  status           PaymentStatus @default(PENDING)
+  provider         String? // "bkash", "nagad", "stripe"
+  gatewayTrxId     String?       @unique // Provider transaction ID (idempotency)
+  gatewayResponse  String? // JSON response from gateway
+  paidAt           DateTime?
+  refundedAt       DateTime?
+  refundAmount     Int?
+  refundReason     String?
+  refundedById     String?
+  initiatedById    String
+  expiresAt        DateTime? // Payment link expiry
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  appointment      Appointment   @relation(fields: [appointmentId], references: [id])
+  initiatedBy      User          @relation("PaymentInitiatedBy", fields: [initiatedById], references: [id])
+
+  @@index([status])
+  @@index([provider])
+}
+
+// ==========================================
+// PART 8: PRICING & COUPONS
+// ==========================================
+
+model BookingRule {
+  id                     String   @id @default(cuid())
+  minLeadTimeMinutes     Int      @default(60) // Min time before slot
+  maxAdvanceBookingDays  Int      @default(30) // Max days in advance
+  sameDayCutoffTime      String? // "14:00" - no same-day after this
+  cancellationDeadlineMins Int    @default(120) // Min time before for cancel
+  rescheduleDeadlineMins Int      @default(120)
+  maxActiveBookings      Int      @default(5) // Per patient
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model PricingRule {
+  id              String   @id @default(cuid())
+  name            String
+  ruleType        String // "peak_hour", "off_peak", "new_patient", "returning"
+  adjustmentType  String // "percentage", "fixed"
+  adjustmentValue Int // Percentage (500 = 5%) or fixed paisa
+  startTime       String? // For time-based rules
+  endTime         String?
+  daysOfWeek      String? // JSON array of days
+  priority        Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Coupon {
+  id             String        @id @default(cuid())
+  code           String        @unique
+  discountType   String // "percentage", "fixed"
+  discountValue  Int // Percentage or fixed paisa
+  maxUses        Int?
+  usedCount      Int           @default(0)
+  minOrderAmount Int? // Minimum booking amount
+  maxDiscount    Int? // Cap for percentage discounts
+  validFrom      DateTime
+  validUntil     DateTime
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  usages         CouponUsage[]
+
+  @@index([code])
+}
+
+model CouponUsage {
+  id            String      @id @default(cuid())
+  couponId      String
+  appointmentId String      @unique
+  discountApplied Int
+  createdAt     DateTime    @default(now())
+  coupon        Coupon      @relation(fields: [couponId], references: [id])
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+
+  @@index([couponId])
+}
+
+// ==========================================
+// PART 9: NOTIFICATIONS
+// ==========================================
+
+model NotificationTemplate {
+  id           String   @id @default(cuid())
+  key          String   @unique // "appointment.confirmed", "payment.received"
+  channel      String // "sms", "email", "push"
+  subjectEn    String? // Email subject
+  subjectBn    String?
+  bodyEn       String
+  bodyBn       String
+  variables    String? // JSON array of variable names
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model NotificationLog {
+  id           String   @id @default(cuid())
+  templateKey  String
+  channel      String
+  recipient    String // Phone/email
+  subject      String?
+  body         String
+  status       String // "sent", "failed", "pending"
+  errorMessage String?
+  sentAt       DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([recipient])
+  @@index([createdAt])
+}
+
+// ==========================================
+// PART 10: AUDIT LOG
+// ==========================================
+
+model AuditLogSetting {
+  id            String   @id @default(cuid())
+  resourceType  String   @unique
+  isEnabled     Boolean  @default(true)
+  retentionDays Int? // null = keep forever
+  updatedAt     DateTime @updatedAt
+  updatedBy     String
+}
+
+model AuditLog {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  actorId       String?
+  actorName     String?
+  actorRole     String?
+  actorIp       String?
+  action        AuditAction
+  resourceType  String
+  resourceId    String
+  resourceLabel String?
+  previousValue String? // JSON
+  newValue      String? // JSON
+  changedFields String? // JSON array
+  metadata      String? // JSON
+  requestId     String?
+  actor         User?       @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([resourceType, resourceId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+// ==========================================
+// PART 11: SYSTEM SETTINGS
+// ==========================================
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String // JSON value
+  group     String // "clinic", "booking", "payment", "notification"
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum BloodGroup {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+}
+
+enum ExceptionType {
+  LEAVE // Full day off
+  HOLIDAY // Public holiday
+  BREAK // Mid-day break
+  EXTENDED // Extended hours
+  REDUCED // Reduced hours
+}
+
+enum AppointmentStatus {
+  PENDING // Awaiting payment
+  CONFIRMED // Payment received
+  CHECKED_IN // Patient arrived
+  IN_PROGRESS // With doctor
+  COMPLETED // Consultation done
+  CANCELLED // Cancelled
+  NO_SHOW // Patient didn't show
+  RESCHEDULED // Moved to new slot
+}
+
+enum AppointmentType {
+  CONSULTATION
+  FOLLOW_UP
+  PROCEDURE
+  EMERGENCY
+}
+
+enum QueueStatus {
+  WAITING
+  CALLED
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  EXPIRED
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum AuditAction {
+  APPOINTMENT_CREATED
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_RESCHEDULED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_COMPLETED
+  APPOINTMENT_NO_SHOW
+  APPOINTMENT_CHECKED_IN
+  APPOINTMENT_BATCH_CANCELLED
+  PAYMENT_INITIATED
+  PAYMENT_COMPLETED
+  PAYMENT_FAILED
+  PAYMENT_REFUND_INITIATED
+  PAYMENT_REFUND_COMPLETED
+  USER_REGISTERED
+  USER_LOGIN
+  USER_LOGOUT
+  USER_LOGIN_FAILED
+  USER_PROFILE_UPDATED
+  USER_DEACTIVATED
+  ROLE_CREATED
+  ROLE_UPDATED
+  ROLE_DELETED
+  PERMISSION_GRANTED
+  PERMISSION_REVOKED
+  USER_ROLE_ASSIGNED
+  USER_ROLE_REMOVED
+  DOCTOR_PROFILE_UPDATED
+  DOCTOR_SCHEDULE_UPDATED
+  DOCTOR_STATUS_CHANGED
+  NOTIFICATION_TEMPLATE_UPDATED
+  SETTING_UPDATED
+  AUDIT_SETTING_UPDATED
+  SYSTEM_CRON_PURGE
 }

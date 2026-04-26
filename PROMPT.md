@@ -273,7 +273,7 @@ The application renders **one unified Next.js app** with dynamic navigation and 
 ### 2.1 Portal Layout System
 
 ```
-/pages/
+app/
 ├── admin/          # Requires: settings:manage OR reports:view:* OR staff:manage
 ├── doctor/         # Requires: doctors:update:own OR appointments:read:own
 ├── receptionist/   # Requires: appointments:create AND queue:manage

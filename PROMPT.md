@@ -22,6 +22,12 @@ Phase 12 · Optional        Redis · S3 · Calendar sync · WhatsApp · Web Push
 Phase 13 · Deployment      Dockerfile · docker-compose · CI/CD
 ```
 
+## COMPLETED PHASES & TASKS
+
+- **Phase 1 (Foundation):** DB schema, Prisma client, PBAC service, and Auth (NextAuth) setup completed.
+- **Phase 2 (Core Entities):** Doctor, Patient, Chamber, and Schedule models & APIs completed.
+- **Phase 11 (Animations/UI):** GSAP animation system, hybrid i18n setup, and the complete Landing Page (`/`, `/about`, `/contact`, `/doctors`) implemented.
+
 ---
 
 ## PART 1 — AUTHORIZATION (PBAC)
@@ -257,24 +263,24 @@ STRIPE_SECRET_KEY= STRIPE_WEBHOOK_SECRET= STRIPE_PUBLISHABLE_KEY=
 
 ## PART 5 — TECH STACK
 
-| Layer         | Technology                | Rule                                                                         |
-| ------------- | ------------------------- | ---------------------------------------------------------------------------- |
-| Framework     | Next.js 16 App Router     | Server Components default. `"use client"` only for interactivity/hooks/GSAP. |
-| Language      | TypeScript strict         | No `any`. Explicit interfaces everywhere.                                    |
-| Styling       | Tailwind CSS v4           | No inline styles. Dark mode on all portals.                                  |
-| UI            | shadcn/ui                 | **All UI from shadcn primitives.** See `.agents/skills/shadcn/SKILL.md`.     |
-| Forms         | React Hook Form + Zod     | `zodResolver` on every form. Schemas in `lib/zod-schemas/`.                  |
-| Server State  | TanStack Query            | All API calls via RQ hooks. Never raw `fetch` in components.                 |
-| Client State  | Zustand                   | Auth, permissions, booking flow, UI modals/toasts.                           |
-| Auth          | NextAuth.js v5            | Phone OTP + Google/Facebook OAuth. JWT only.                                 |
-| DB (dev)      | SQLite via better-sqlite3 | `DB_TYPE=sqlite`. Prisma adapter: `PrismaBetterSqlite3`.                     |
-| DB (prod)     | PostgreSQL via pg         | `DB_TYPE=postgres`. Prisma adapter: `PrismaPg`. Dockerized.                  |
-| ORM           | Prisma 7+                 | Client output: `app/generated/prisma`. Singleton in `lib/prisma.ts`.         |
-| Auth/Perms    | PBAC (Part 1)             | Never check role names. Always check permission keys.                        |
-| Notifications | Modular (Part 3)          | Always via `NotificationService`.                                            |
-| Payments      | Modular (Part 4)          | Always via `PaymentService`.                                                 |
+| Layer         | Technology                | Rule                                                                                                                                                                                                      |
+| ------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework     | Next.js 16 App Router     | Server Components default. `"use client"` only for interactivity/hooks/GSAP.                                                                                                                              |
+| Language      | TypeScript strict         | No `any`. Explicit interfaces everywhere.                                                                                                                                                                 |
+| Styling       | Tailwind CSS v4           | No inline styles. Dark mode on all portals.                                                                                                                                                               |
+| UI            | shadcn/ui                 | **All UI from shadcn primitives.** See `.agents/skills/shadcn/SKILL.md`.                                                                                                                                  |
+| Forms         | React Hook Form + Zod     | `zodResolver` on every form. Schemas in `lib/zod-schemas/`.                                                                                                                                               |
+| Server State  | TanStack Query            | All API calls via RQ hooks. Never raw `fetch` in components.                                                                                                                                              |
+| Client State  | Zustand                   | Auth, permissions, booking flow, UI modals/toasts.                                                                                                                                                        |
+| Auth          | NextAuth.js v5            | Phone OTP + Google/Facebook OAuth. JWT only.                                                                                                                                                              |
+| DB (dev)      | SQLite via better-sqlite3 | `DB_TYPE=sqlite`. Prisma adapter: `PrismaBetterSqlite3`.                                                                                                                                                  |
+| DB (prod)     | PostgreSQL via pg         | `DB_TYPE=postgres`. Prisma adapter: `PrismaPg`. Dockerized.                                                                                                                                               |
+| ORM           | Prisma 7+                 | Client output: `app/generated/prisma`. Singleton in `lib/prisma.ts`.                                                                                                                                      |
+| Auth/Perms    | PBAC (Part 1)             | Never check role names. Always check permission keys.                                                                                                                                                     |
+| Notifications | Modular (Part 3)          | Always via `NotificationService`.                                                                                                                                                                         |
+| Payments      | Modular (Part 4)          | Always via `PaymentService`.                                                                                                                                                                              |
 | i18n          | Hybrid Approach           | Client Components: `react-i18next` (`useTranslation`). Server Components: `lib/i18n-server.ts` (`getIsEn()`) reading `NEXT_LOCALE` cookie. Toggle sets cookie + `router.refresh()`. Default locale: `bn`. |
-| Animation     | GSAP                      | All animation via `lib/animations/gsap.ts`. Never Framer Motion.             |
+| Animation     | GSAP                      | All animation via `lib/animations/gsap.ts`. Never Framer Motion.                                                                                                                                          |
 
 ---
 

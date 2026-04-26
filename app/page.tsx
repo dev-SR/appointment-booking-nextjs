@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button"
+import prisma from "@/lib/prisma"
 
-export default function Page() {
+export default async function Page() {
+  const users = await prisma.user.findMany()
   return (
     <div className="flex min-h-svh p-6">
       <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
@@ -13,6 +15,12 @@ export default function Page() {
         <div className="font-mono text-xs text-muted-foreground">
           (Press <kbd>d</kbd> to toggle dark mode)
         </div>
+
+        {users.map((user) => (
+          <p key={user.id} className="mb-2">
+            {user.name} : {user.email}
+          </p>
+        ))}
       </div>
     </div>
   )

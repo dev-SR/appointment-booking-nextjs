@@ -9,7 +9,132 @@
 * 🟢 You can import this file directly.
 */
 
+export const Gender = {
+  MALE: 'MALE',
+  FEMALE: 'FEMALE',
+  OTHER: 'OTHER'
+} as const
+
+export type Gender = (typeof Gender)[keyof typeof Gender]
 
 
-// This file is empty because there are no enums in the schema.
-export {}
+export const BloodGroup = {
+  A_POSITIVE: 'A_POSITIVE',
+  A_NEGATIVE: 'A_NEGATIVE',
+  B_POSITIVE: 'B_POSITIVE',
+  B_NEGATIVE: 'B_NEGATIVE',
+  AB_POSITIVE: 'AB_POSITIVE',
+  AB_NEGATIVE: 'AB_NEGATIVE',
+  O_POSITIVE: 'O_POSITIVE',
+  O_NEGATIVE: 'O_NEGATIVE'
+} as const
+
+export type BloodGroup = (typeof BloodGroup)[keyof typeof BloodGroup]
+
+
+export const ExceptionType = {
+  LEAVE: 'LEAVE',
+  HOLIDAY: 'HOLIDAY',
+  BREAK: 'BREAK',
+  EXTENDED: 'EXTENDED',
+  REDUCED: 'REDUCED'
+} as const
+
+export type ExceptionType = (typeof ExceptionType)[keyof typeof ExceptionType]
+
+
+export const AppointmentStatus = {
+  PENDING: 'PENDING',
+  CONFIRMED: 'CONFIRMED',
+  CHECKED_IN: 'CHECKED_IN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  NO_SHOW: 'NO_SHOW',
+  RESCHEDULED: 'RESCHEDULED'
+} as const
+
+export type AppointmentStatus = (typeof AppointmentStatus)[keyof typeof AppointmentStatus]
+
+
+export const AppointmentType = {
+  CONSULTATION: 'CONSULTATION',
+  FOLLOW_UP: 'FOLLOW_UP',
+  PROCEDURE: 'PROCEDURE',
+  EMERGENCY: 'EMERGENCY'
+} as const
+
+export type AppointmentType = (typeof AppointmentType)[keyof typeof AppointmentType]
+
+
+export const QueueStatus = {
+  WAITING: 'WAITING',
+  CALLED: 'CALLED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  SKIPPED: 'SKIPPED',
+  NO_SHOW: 'NO_SHOW'
+} as const
+
+export type QueueStatus = (typeof QueueStatus)[keyof typeof QueueStatus]
+
+
+export const PaymentStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  PAID: 'PAID',
+  FAILED: 'FAILED',
+  REFUNDED: 'REFUNDED',
+  PARTIALLY_REFUNDED: 'PARTIALLY_REFUNDED',
+  EXPIRED: 'EXPIRED'
+} as const
+
+export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus]
+
+
+export const Frequency = {
+  DAILY: 'DAILY',
+  WEEKLY: 'WEEKLY',
+  MONTHLY: 'MONTHLY'
+} as const
+
+export type Frequency = (typeof Frequency)[keyof typeof Frequency]
+
+
+export const AuditAction = {
+  APPOINTMENT_CREATED: 'APPOINTMENT_CREATED',
+  APPOINTMENT_CONFIRMED: 'APPOINTMENT_CONFIRMED',
+  APPOINTMENT_RESCHEDULED: 'APPOINTMENT_RESCHEDULED',
+  APPOINTMENT_CANCELLED: 'APPOINTMENT_CANCELLED',
+  APPOINTMENT_COMPLETED: 'APPOINTMENT_COMPLETED',
+  APPOINTMENT_NO_SHOW: 'APPOINTMENT_NO_SHOW',
+  APPOINTMENT_CHECKED_IN: 'APPOINTMENT_CHECKED_IN',
+  APPOINTMENT_BATCH_CANCELLED: 'APPOINTMENT_BATCH_CANCELLED',
+  PAYMENT_INITIATED: 'PAYMENT_INITIATED',
+  PAYMENT_COMPLETED: 'PAYMENT_COMPLETED',
+  PAYMENT_FAILED: 'PAYMENT_FAILED',
+  PAYMENT_REFUND_INITIATED: 'PAYMENT_REFUND_INITIATED',
+  PAYMENT_REFUND_COMPLETED: 'PAYMENT_REFUND_COMPLETED',
+  USER_REGISTERED: 'USER_REGISTERED',
+  USER_LOGIN: 'USER_LOGIN',
+  USER_LOGOUT: 'USER_LOGOUT',
+  USER_LOGIN_FAILED: 'USER_LOGIN_FAILED',
+  USER_PROFILE_UPDATED: 'USER_PROFILE_UPDATED',
+  USER_DEACTIVATED: 'USER_DEACTIVATED',
+  ROLE_CREATED: 'ROLE_CREATED',
+  ROLE_UPDATED: 'ROLE_UPDATED',
+  ROLE_DELETED: 'ROLE_DELETED',
+  PERMISSION_GRANTED: 'PERMISSION_GRANTED',
+  PERMISSION_REVOKED: 'PERMISSION_REVOKED',
+  USER_ROLE_ASSIGNED: 'USER_ROLE_ASSIGNED',
+  USER_ROLE_REMOVED: 'USER_ROLE_REMOVED',
+  DOCTOR_PROFILE_UPDATED: 'DOCTOR_PROFILE_UPDATED',
+  DOCTOR_SCHEDULE_UPDATED: 'DOCTOR_SCHEDULE_UPDATED',
+  DOCTOR_STATUS_CHANGED: 'DOCTOR_STATUS_CHANGED',
+  NOTIFICATION_TEMPLATE_UPDATED: 'NOTIFICATION_TEMPLATE_UPDATED',
+  SETTING_UPDATED: 'SETTING_UPDATED',
+  AUDIT_SETTING_UPDATED: 'AUDIT_SETTING_UPDATED',
+  SYSTEM_CRON_PURGE: 'SYSTEM_CRON_PURGE'
+} as const
+
+export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction]

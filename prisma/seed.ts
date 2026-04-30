@@ -435,6 +435,97 @@ async function main() {
   }
   console.log(`✓ Created ${chambers.length} chambers`)
 
+  // 8. Create sample doctors for booking
+  console.log("Creating sample doctors...")
+  const doctorSpecialty = await prisma.specialty.findFirst({
+    where: { nameEn: "Cardiology" }
+  })
+  
+  if (doctorSpecialty) {
+    const docUser = await prisma.user.upsert({
+      where: { phone: "+8801711111111" },
+      update: {},
+      create: {
+        phone: "+8801711111111",
+        email: "doctor@example.com",
+        nameEn: "John Doe",
+        nameBn: "জন ডো",
+        isPhoneVerified: true,
+      }
+    })
+
+    const doctorRoleId = roles["doctor"]
+    if (doctorRoleId) {
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: docUser.id, roleId: doctorRoleId } },
+        update: {},
+        create: { userId: docUser.id, roleId: doctorRoleId, assignedBy: "system" }
+      })
+    }
+
+    // Find existing doctor to upsert correctly without unique constraint issues
+    let doctor = await prisma.doctor.findFirst({ where: { userId: docUser.id } })
+    
+    if (!doctor) {
+      doctor = await prisma.doctor.create({
+        data: {
+          userId: docUser.id,
+          registrationNumber: "BMDC-12345",
+          specialtyId: doctorSpecialty.id,
+          titleEn: "Dr.",
+          titleBn: "ডাঃ",
+          qualificationsEn: "MBBS, MD (Cardiology)",
+          experienceYears: 10,
+          consultationFee: 100000, // 1000 BDT
+          followUpFee: 70000,
+        }
+      })
+    }
+
+    const chamberId = chambers[0].nameEn.toLowerCase().replace(/\s+/g, "-")
+
+    await prisma.doctorChamber.upsert({
+      where: { doctorId_chamberId: { doctorId: doctor.id, chamberId: chamberId } },
+      update: {},
+      create: {
+        doctorId: doctor.id,
+        chamberId: chamberId,
+        isPrimary: true
+      }
+    })
+
+    // Delete existing schedules to avoid duplicates on re-seed
+    await prisma.schedule.deleteMany({ where: { doctorId: doctor.id } })
+
+    // Add schedule for the next 7 days (day 0 to 6)
+    for (let day = 0; day <= 6; day++) {
+      // Morning
+      await prisma.schedule.create({
+        data: {
+          doctorId: doctor.id,
+          dayOfWeek: day,
+          startTime: "10:00",
+          endTime: "13:00",
+          slotIntervalMins: 15,
+          maxPatients: 1
+        }
+      })
+      // Evening
+      await prisma.schedule.create({
+        data: {
+          doctorId: doctor.id,
+          dayOfWeek: day,
+          startTime: "17:00",
+          endTime: "21:00",
+          slotIntervalMins: 15,
+          maxPatients: 1
+        }
+      })
+    }
+    
+    console.log("✓ Created sample doctor (Dr. John Doe)")
+  }
+
   console.log("\n✅ Database seeded successfully!")
 }
 

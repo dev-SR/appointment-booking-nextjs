@@ -7,3 +7,5 @@ export * from './doctor';
 export * from './patient';
 export * from './chamber';
 export * from './schedule';
+export * from './slot';
+export * from './appointment';

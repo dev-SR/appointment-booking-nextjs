@@ -77,7 +77,7 @@ export function Testimonials() {
                       ))}
                     </div>
                     <p className="text-lg mb-6 flex-grow italic leading-relaxed">
-                      "{isEn ? t.bodyEn : t.bodyBn}"
+                      &quot;{isEn ? t.bodyEn : t.bodyBn}&quot;
                     </p>
                     <div className="flex items-center gap-3 pt-4 border-t mt-auto">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">

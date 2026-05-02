@@ -13,6 +13,7 @@
 import { PrismaClient } from "@/app/generated/prisma/client"
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3"
 import { PrismaPg } from "@prisma/adapter-pg"
+import { hash } from "bcryptjs"
 import "dotenv/config"
 
 const dbType = process.env.DB_TYPE
@@ -44,6 +45,11 @@ const PERMISSIONS = {
   APPOINTMENTS_UPDATE_ANY: "appointments:update:any",
   APPOINTMENTS_CANCEL_OWN: "appointments:cancel:own",
   APPOINTMENTS_CANCEL_ANY: "appointments:cancel:any",
+  APPOINTMENTS_RESCHEDULE_OWN: "appointments:reschedule:own",
+  APPOINTMENTS_RESCHEDULE_ANY: "appointments:reschedule:any",
+  APPOINTMENTS_CHECKIN_ANY: "appointments:checkin:any",
+  APPOINTMENTS_COMPLETE_OWN: "appointments:complete:own",
+  DOCTORS_READ: "doctors:read",
   DOCTORS_CREATE: "doctors:create",
   DOCTORS_READ_ALL: "doctors:read:all",
   DOCTORS_UPDATE_OWN: "doctors:update:own",
@@ -57,6 +63,8 @@ const PERMISSIONS = {
   PATIENTS_UPDATE_ANY: "patients:update:any",
   PAYMENTS_READ_OWN: "payments:read:own",
   PAYMENTS_READ_ALL: "payments:read:all",
+  PAYMENTS_CREATE: "payments:create",
+  PAYMENTS_UPDATE_ANY: "payments:update:any",
   PAYMENTS_REFUND: "payments:refund",
   QUEUE_MANAGE: "queue:manage",
   QUEUE_VIEW: "queue:view",
@@ -68,8 +76,17 @@ const PERMISSIONS = {
   STAFF_VIEW: "staff:view",
   SETTINGS_MANAGE: "settings:manage",
   SETTINGS_VIEW: "settings:view",
+  CHAMBERS_READ: "chambers:read",
+  CHAMBERS_MANAGE: "chambers:manage",
+  SPECIALTIES_READ: "specialties:read",
+  SPECIALTIES_MANAGE: "specialties:manage",
   SCHEDULE_MANAGE_OWN: "schedule:manage:own",
   SCHEDULE_MANAGE_ANY: "schedule:manage:any",
+  DASHBOARD_VIEW_ADMIN: "dashboard:view:admin",
+  DASHBOARD_VIEW_RECEPTIONIST: "dashboard:view:receptionist",
+  DASHBOARD_VIEW_DOCTOR: "dashboard:view:doctor",
+  DASHBOARD_VIEW_ACCOUNTANT: "dashboard:view:accountant",
+  DASHBOARD_VIEW_PATIENT: "dashboard:view:patient",
   INVOICES_GENERATE: "invoices:generate",
   INVOICES_VIEW_OWN: "invoices:view:own",
   INVOICES_VIEW_ALL: "invoices:view:all",
@@ -93,9 +110,18 @@ const SYSTEM_ROLES = {
       PERMISSIONS.APPOINTMENTS_CREATE,
       PERMISSIONS.APPOINTMENTS_READ_ALL,
       PERMISSIONS.APPOINTMENTS_CANCEL_ANY,
+      PERMISSIONS.APPOINTMENTS_RESCHEDULE_ANY,
+      PERMISSIONS.APPOINTMENTS_CHECKIN_ANY,
       PERMISSIONS.QUEUE_MANAGE,
+      PERMISSIONS.PATIENTS_CREATE,
       PERMISSIONS.PATIENTS_READ_ALL,
+      PERMISSIONS.PATIENTS_UPDATE_ANY,
+      PERMISSIONS.DOCTORS_READ,
+      PERMISSIONS.CHAMBERS_READ,
+      PERMISSIONS.SPECIALTIES_READ,
+      PERMISSIONS.PAYMENTS_CREATE,
       PERMISSIONS.INVOICES_GENERATE,
+      PERMISSIONS.DASHBOARD_VIEW_RECEPTIONIST,
     ],
   },
   DOCTOR: {
@@ -105,9 +131,11 @@ const SYSTEM_ROLES = {
     permissions: [
       PERMISSIONS.APPOINTMENTS_READ_OWN,
       PERMISSIONS.APPOINTMENTS_UPDATE_OWN,
+      PERMISSIONS.APPOINTMENTS_COMPLETE_OWN,
       PERMISSIONS.PATIENTS_READ_ASSIGNED,
       PERMISSIONS.DOCTORS_UPDATE_OWN,
       PERMISSIONS.SCHEDULE_MANAGE_OWN,
+      PERMISSIONS.DASHBOARD_VIEW_DOCTOR,
     ],
   },
   ACCOUNTANT: {
@@ -116,9 +144,12 @@ const SYSTEM_ROLES = {
     isSystem: true,
     permissions: [
       PERMISSIONS.PAYMENTS_READ_ALL,
+      PERMISSIONS.PAYMENTS_CREATE,
+      PERMISSIONS.PAYMENTS_UPDATE_ANY,
       PERMISSIONS.PAYMENTS_REFUND,
       PERMISSIONS.REPORTS_VIEW_FINANCIAL,
       PERMISSIONS.INVOICES_GENERATE,
+      PERMISSIONS.DASHBOARD_VIEW_ACCOUNTANT,
     ],
   },
   PATIENT: {
@@ -129,8 +160,12 @@ const SYSTEM_ROLES = {
       PERMISSIONS.APPOINTMENTS_CREATE,
       PERMISSIONS.APPOINTMENTS_READ_OWN,
       PERMISSIONS.APPOINTMENTS_CANCEL_OWN,
+      PERMISSIONS.APPOINTMENTS_RESCHEDULE_OWN,
       PERMISSIONS.PAYMENTS_READ_OWN,
+      PERMISSIONS.PATIENTS_READ_OWN,
       PERMISSIONS.PATIENTS_UPDATE_OWN,
+      PERMISSIONS.INVOICES_VIEW_OWN,
+      PERMISSIONS.DASHBOARD_VIEW_PATIENT,
     ],
   },
 }
@@ -140,7 +175,12 @@ async function main() {
 
   // 1. Create all permissions
   console.log("Creating permissions...")
-  const permissionData = [
+  const permissionData: Array<{
+    key: string
+    displayName: string
+    group: string
+    description?: string
+  }> = [
     // Appointments
     { key: PERMISSIONS.APPOINTMENTS_CREATE, displayName: "Create Appointments", group: "Appointments" },
     { key: PERMISSIONS.APPOINTMENTS_READ_OWN, displayName: "View Own Appointments", group: "Appointments" },
@@ -149,8 +189,13 @@ async function main() {
     { key: PERMISSIONS.APPOINTMENTS_UPDATE_ANY, displayName: "Update Any Appointment", group: "Appointments" },
     { key: PERMISSIONS.APPOINTMENTS_CANCEL_OWN, displayName: "Cancel Own Appointments", group: "Appointments" },
     { key: PERMISSIONS.APPOINTMENTS_CANCEL_ANY, displayName: "Cancel Any Appointment", group: "Appointments" },
+    { key: PERMISSIONS.APPOINTMENTS_RESCHEDULE_OWN, displayName: "Reschedule Own Appointments", group: "Appointments" },
+    { key: PERMISSIONS.APPOINTMENTS_RESCHEDULE_ANY, displayName: "Reschedule Any Appointment", group: "Appointments" },
+    { key: PERMISSIONS.APPOINTMENTS_CHECKIN_ANY, displayName: "Check In Patients", group: "Appointments" },
+    { key: PERMISSIONS.APPOINTMENTS_COMPLETE_OWN, displayName: "Complete Own Appointments", group: "Appointments" },
 
     // Doctors
+    { key: PERMISSIONS.DOCTORS_READ, displayName: "View Doctors", group: "Doctors" },
     { key: PERMISSIONS.DOCTORS_CREATE, displayName: "Create Doctors", group: "Doctors" },
     { key: PERMISSIONS.DOCTORS_READ_ALL, displayName: "View All Doctors", group: "Doctors" },
     { key: PERMISSIONS.DOCTORS_UPDATE_OWN, displayName: "Update Own Profile", group: "Doctors" },
@@ -168,6 +213,8 @@ async function main() {
     // Payments
     { key: PERMISSIONS.PAYMENTS_READ_OWN, displayName: "View Own Payments", group: "Payments" },
     { key: PERMISSIONS.PAYMENTS_READ_ALL, displayName: "View All Payments", group: "Payments" },
+    { key: PERMISSIONS.PAYMENTS_CREATE, displayName: "Create Payments", group: "Payments" },
+    { key: PERMISSIONS.PAYMENTS_UPDATE_ANY, displayName: "Update Any Payment", group: "Payments" },
     { key: PERMISSIONS.PAYMENTS_REFUND, displayName: "Process Refunds", group: "Payments" },
 
     // Queue
@@ -189,6 +236,10 @@ async function main() {
     // Settings
     { key: PERMISSIONS.SETTINGS_MANAGE, displayName: "Manage Settings", group: "Administration" },
     { key: PERMISSIONS.SETTINGS_VIEW, displayName: "View Settings", group: "Administration" },
+    { key: PERMISSIONS.CHAMBERS_READ, displayName: "View Chambers", group: "Chambers" },
+    { key: PERMISSIONS.CHAMBERS_MANAGE, displayName: "Manage Chambers", group: "Chambers" },
+    { key: PERMISSIONS.SPECIALTIES_READ, displayName: "View Specialties", group: "Specialties" },
+    { key: PERMISSIONS.SPECIALTIES_MANAGE, displayName: "Manage Specialties", group: "Specialties" },
 
     // Schedule
     { key: PERMISSIONS.SCHEDULE_MANAGE_OWN, displayName: "Manage Own Schedule", group: "Schedule" },
@@ -199,6 +250,13 @@ async function main() {
     { key: PERMISSIONS.INVOICES_VIEW_OWN, displayName: "View Own Invoices", group: "Invoices" },
     { key: PERMISSIONS.INVOICES_VIEW_ALL, displayName: "View All Invoices", group: "Invoices" },
 
+    // Dashboards
+    { key: PERMISSIONS.DASHBOARD_VIEW_ADMIN, displayName: "View Admin Dashboard", group: "Dashboards" },
+    { key: PERMISSIONS.DASHBOARD_VIEW_RECEPTIONIST, displayName: "View Receptionist Dashboard", group: "Dashboards" },
+    { key: PERMISSIONS.DASHBOARD_VIEW_DOCTOR, displayName: "View Doctor Dashboard", group: "Dashboards" },
+    { key: PERMISSIONS.DASHBOARD_VIEW_ACCOUNTANT, displayName: "View Accountant Dashboard", group: "Dashboards" },
+    { key: PERMISSIONS.DASHBOARD_VIEW_PATIENT, displayName: "View Patient Dashboard", group: "Dashboards" },
+
     // Audit
     { key: PERMISSIONS.AUDIT_VIEW, displayName: "View Audit Logs", group: "Administration" },
 
@@ -207,6 +265,16 @@ async function main() {
   ]
 
   const permissions: Record<string, string> = {}
+  for (const permissionKey of Object.values(PERMISSIONS)) {
+    if (!permissionData.some((permission) => permission.key === permissionKey)) {
+      permissionData.push({
+        key: permissionKey,
+        displayName: permissionKey,
+        group: "General",
+      })
+    }
+  }
+
   for (const perm of permissionData) {
     const created = await prisma.permission.upsert({
       where: { key: perm.key },
@@ -306,6 +374,27 @@ async function main() {
   })
   console.log("✓ Created default booking rules")
 
+  // 4.1 Create default audit settings
+  console.log("Creating audit settings...")
+  const auditSettings = [
+    { resourceType: "appointment", isEnabled: true, retentionDays: 365 },
+    { resourceType: "payment", isEnabled: true, retentionDays: 2555 },
+    { resourceType: "user", isEnabled: true, retentionDays: 730 },
+    { resourceType: "role", isEnabled: true, retentionDays: 2555 },
+    { resourceType: "permission", isEnabled: true, retentionDays: 2555 },
+    { resourceType: "portal", isEnabled: true, retentionDays: 365 },
+    { resourceType: "setting", isEnabled: true, retentionDays: 2555 },
+    { resourceType: "audit", isEnabled: true, retentionDays: 2555 },
+  ]
+  for (const setting of auditSettings) {
+    await prisma.auditLogSetting.upsert({
+      where: { resourceType: setting.resourceType },
+      update: setting,
+      create: { ...setting, updatedBy: "system" },
+    })
+  }
+  console.log(`✓ Created ${auditSettings.length} audit settings`)
+
   // 5. Create notification templates
   console.log("Creating notification templates...")
   const templates = [
@@ -362,43 +451,44 @@ async function main() {
   }
   console.log(`✓ Created ${templates.length} notification templates`)
 
-  // 6. Create a super admin user (development only)
-  if (process.env.NODE_ENV === "development" || process.env.SEED_ADMIN === "true") {
-    console.log("Creating super admin user...")
-    const adminUser = await prisma.user.upsert({
-      where: { phone: "+8801700000000" },
-      update: {},
-      create: {
-        phone: "+8801700000000",
-        email: "admin@example.com",
-        nameEn: "Super Admin",
-        nameBn: "সুপার অ্যাডমিন",
-        isPhoneVerified: true,
-        isEmailVerified: true,
-        preferredLocale: "en",
-      },
-    })
+  const commonPasswordHash = await hash("password123", 12)
 
-    // Assign super admin role
-    const superAdminRoleId = roles["super_admin"]
-    if (superAdminRoleId) {
-      await prisma.userRole.upsert({
-        where: {
-          userId_roleId: {
-            userId: adminUser.id,
-            roleId: superAdminRoleId,
-          },
-        },
-        update: {},
-        create: {
+  // 6. Create a super admin user
+  console.log("Creating super admin user...")
+  const adminUser = await prisma.user.upsert({
+    where: { phone: "+8801700000000" },
+    update: { passwordHash: commonPasswordHash },
+    create: {
+      phone: "+8801700000000",
+      email: "admin@example.com",
+      passwordHash: commonPasswordHash,
+      nameEn: "Super Admin",
+      nameBn: "সুপার অ্যাডমিন",
+      isPhoneVerified: true,
+      isEmailVerified: true,
+      preferredLocale: "en",
+    },
+  })
+
+  // Assign super admin role
+  const superAdminRoleId = roles["super_admin"]
+  if (superAdminRoleId) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
           userId: adminUser.id,
           roleId: superAdminRoleId,
-          assignedBy: "system",
         },
-      })
-    }
-    console.log("✓ Created super admin user (phone: +8801700000000)")
+      },
+      update: {},
+      create: {
+        userId: adminUser.id,
+        roleId: superAdminRoleId,
+        assignedBy: "system",
+      },
+    })
   }
+  console.log("✓ Created super admin user (phone: +8801700000000)")
 
   // 7. Create sample chambers
   console.log("Creating sample chambers...")
@@ -437,6 +527,7 @@ async function main() {
 
   // 8. Create sample doctors for booking
   console.log("Creating sample doctors...")
+
   const doctorSpecialty = await prisma.specialty.findFirst({
     where: { nameEn: "Cardiology" }
   })
@@ -444,13 +535,15 @@ async function main() {
   if (doctorSpecialty) {
     const docUser = await prisma.user.upsert({
       where: { phone: "+8801711111111" },
-      update: {},
+      update: { passwordHash: commonPasswordHash },
       create: {
         phone: "+8801711111111",
         email: "doctor@example.com",
         nameEn: "John Doe",
         nameBn: "জন ডো",
+        passwordHash: commonPasswordHash,
         isPhoneVerified: true,
+        isEmailVerified: true,
       }
     })
 
@@ -525,6 +618,90 @@ async function main() {
     
     console.log("✓ Created sample doctor (Dr. John Doe)")
   }
+
+  // 9. Create additional test users for Receptionist, Accountant, Patient
+  console.log("Creating additional test users...")
+
+  // Receptionist
+  const receptionistUser = await prisma.user.upsert({
+    where: { phone: "+8801722222222" },
+    update: { passwordHash: commonPasswordHash },
+    create: {
+      phone: "+8801722222222",
+      email: "receptionist@example.com",
+      nameEn: "Sarah Receptionist",
+      nameBn: "সারা রিসেপশনিস্ট",
+      passwordHash: commonPasswordHash,
+      isPhoneVerified: true,
+      isEmailVerified: true,
+    }
+  })
+  if (roles["receptionist"]) {
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: receptionistUser.id, roleId: roles["receptionist"] } },
+      update: {},
+      create: { userId: receptionistUser.id, roleId: roles["receptionist"], assignedBy: "system" }
+    })
+  }
+
+  // Accountant
+  const accountantUser = await prisma.user.upsert({
+    where: { phone: "+8801733333333" },
+    update: { passwordHash: commonPasswordHash },
+    create: {
+      phone: "+8801733333333",
+      email: "accountant@example.com",
+      nameEn: "Mike Accountant",
+      nameBn: "মাইক একাউন্ট্যান্ট",
+      passwordHash: commonPasswordHash,
+      isPhoneVerified: true,
+      isEmailVerified: true,
+    }
+  })
+  if (roles["accountant"]) {
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: accountantUser.id, roleId: roles["accountant"] } },
+      update: {},
+      create: { userId: accountantUser.id, roleId: roles["accountant"], assignedBy: "system" }
+    })
+  }
+
+  // Patient
+  const patientUser = await prisma.user.upsert({
+    where: { phone: "+8801744444444" },
+    update: { passwordHash: commonPasswordHash },
+    create: {
+      phone: "+8801744444444",
+      email: "patient@example.com",
+      nameEn: "Jane Patient",
+      nameBn: "জেন রোগী",
+      passwordHash: commonPasswordHash,
+      isPhoneVerified: true,
+      isEmailVerified: true,
+    }
+  })
+  if (roles["patient"]) {
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: patientUser.id, roleId: roles["patient"] } },
+      update: {},
+      create: { userId: patientUser.id, roleId: roles["patient"], assignedBy: "system" }
+    })
+  }
+  
+  // Create patient record for the patient user
+  await prisma.patient.upsert({
+    where: { userId: patientUser.id },
+    update: {},
+    create: {
+      userId: patientUser.id,
+      dateOfBirth: new Date("1990-01-01"),
+      gender: "FEMALE",
+      bloodGroup: "O_POSITIVE",
+    }
+  })
+
+  console.log("✓ Created Receptionist, Accountant, and Patient test users")
+
 
   console.log("\n✅ Database seeded successfully!")
 }

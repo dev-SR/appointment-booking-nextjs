@@ -26,7 +26,7 @@ export default async function BookingPage(props: Props) {
           titleEn: doctor.titleEn || "",
           nameEn: doctor.nameEn || "",
           nameBn: doctor.nameBn || null,
-          specialtyEn: (doctor.specialty as any)?.nameEn || "",
+          specialtyEn: (doctor.specialty as { nameEn?: string } | null)?.nameEn || "",
           consultationFee: doctor.consultationFee || 0,
           profileImageUrl: doctor.profileImageUrl || null,
         }

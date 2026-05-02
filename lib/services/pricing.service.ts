@@ -50,7 +50,7 @@ export async function calculateFee(
   })
 
   const isFollowUp = !!previousAppointment
-  let baseFee = isFollowUp ? doctor.followUpFee : doctor.consultationFee
+  const baseFee = isFollowUp ? doctor.followUpFee : doctor.consultationFee
 
   // 3. Apply PricingRules
   const pricingRules = await prisma.pricingRule.findMany({

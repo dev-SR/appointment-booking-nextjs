@@ -2,9 +2,9 @@
  * NextAuth.js v5 Configuration
  *
  * Supports:
- * - Phone OTP authentication (primary for Bangladesh)
  * - Google OAuth
  * - Facebook OAuth
+ * - Credentials authentication with email + password
  *
  * JWT-only strategy with permissions embedded in token
  */
@@ -13,11 +13,13 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import Google from "next-auth/providers/google"
 import Facebook from "next-auth/providers/facebook"
-import type { JWT } from "next-auth/jwt"
+import "next-auth/jwt"
+import { compare } from "bcryptjs"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/prisma"
 import { getUserPermissions } from "@/lib/services/authorization.service"
-import { verifyOtp } from "@/lib/services/otp.service"
+import { AuditService } from "@/lib/audit/audit.service"
+import { AuditAction } from "@/app/generated/prisma/enums"
 
 declare module "next-auth" {
   interface Session {
@@ -73,74 +75,51 @@ export const {
     newUser: "/register",
   },
   providers: [
-    // Phone OTP Provider
     Credentials({
-      id: "phone-otp",
-      name: "Phone OTP",
+      id: "credentials",
+      name: "Email and password",
       credentials: {
-        phone: { label: "Phone", type: "tel" },
-        otp: { label: "OTP", type: "text" },
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.phone || !credentials?.otp) {
-          throw new Error("Phone and OTP are required")
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Email and password are required")
         }
 
-        const phone = credentials.phone as string
-        const otp = credentials.otp as string
+        const email = String(credentials.email).toLowerCase()
+        const password = String(credentials.password)
 
-        // Verify OTP
-        const isValid = await verifyOtp(phone, otp, "login")
-        if (!isValid) {
-          throw new Error("Invalid or expired OTP")
-        }
-
-        // Find or create user
-        let user = await prisma.user.findUnique({
-          where: { phone },
+        const user = await prisma.user.findUnique({
+          where: { email },
         })
 
-        if (!user) {
-          // Create new user with patient role by default
-          user = await prisma.user.create({
-            data: {
-              phone,
-              nameEn: phone, // Will be updated in profile
-              isPhoneVerified: true,
-              preferredLocale: "bn",
-            },
+        if (!user?.passwordHash) {
+          AuditService.record({
+            action: AuditAction.USER_LOGIN_FAILED,
+            resourceType: "user",
+            resourceId: email,
+            resourceLabel: email,
+            metadata: { provider: "credentials", reason: "USER_NOT_FOUND" },
           })
+          throw new Error("Invalid email or password")
+        }
 
-          // Assign patient role
-          const patientRole = await prisma.role.findUnique({
-            where: { name: "patient" },
+        const validPassword = await compare(password, user.passwordHash)
+        if (!validPassword) {
+          AuditService.record({
+            action: AuditAction.USER_LOGIN_FAILED,
+            resourceType: "user",
+            resourceId: user.id,
+            resourceLabel: user.email,
+            actor: { id: user.id, name: user.nameEn },
+            metadata: { provider: "credentials", reason: "INVALID_PASSWORD" },
           })
+          throw new Error("Invalid email or password")
+        }
 
-          if (patientRole) {
-            await prisma.userRole.create({
-              data: {
-                userId: user.id,
-                roleId: patientRole.id,
-                assignedBy: "system",
-              },
-            })
-          }
-
-          // Create patient profile
-          await prisma.patient.create({
-            data: {
-              userId: user.id,
-            },
-          })
-        } else {
-          // Update phone verification status
-          await prisma.user.update({
-            where: { id: user.id },
-            data: {
-              isPhoneVerified: true,
-              lastLoginAt: new Date(),
-            },
-          })
+        if (!user.isActive) {
+          throw new Error("Account inactive")
         }
 
         return {
@@ -162,7 +141,7 @@ export const {
       profile(profile) {
         return {
           id: profile.sub,
-          phone: "", // Will need to be added later
+          phone: `oauth:google:${profile.sub}`,
           email: profile.email,
           nameEn: profile.name,
           nameBn: null,
@@ -176,6 +155,17 @@ export const {
     Facebook({
       clientId: process.env.FACEBOOK_CLIENT_ID!,
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
+      profile(profile) {
+        return {
+          id: profile.id,
+          phone: `oauth:facebook:${profile.id}`,
+          email: profile.email,
+          nameEn: profile.name,
+          nameBn: null,
+          profileImageUrl: null,
+          preferredLocale: "bn",
+        }
+      },
     }),
   ],
 
@@ -225,15 +215,10 @@ export const {
     },
 
     async signIn({ user, account }) {
-      // For OAuth providers, ensure user has phone number
-      if (account?.provider !== "phone-otp") {
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-        })
-
-        if (existingUser && !existingUser.phone) {
-          // Redirect to phone verification
-          return "/verify-phone"
+      if (account?.provider && account.provider !== "credentials" && user.email) {
+        const existingUser = await prisma.user.findUnique({ where: { email: user.email } })
+        if (existingUser && !existingUser.isActive) {
+          return "/inactive"
         }
       }
 
@@ -243,10 +228,37 @@ export const {
 
   events: {
     async signIn({ user }) {
-      // Update last login timestamp
-      await prisma.user.update({
+      const updatedUser = await prisma.user.update({
         where: { id: user.id },
         data: { lastLoginAt: new Date() },
+        include: { patient: true, userRoles: true },
+      })
+
+      if (!updatedUser.patient) {
+        const patientRole = await prisma.role.findUnique({ where: { name: "patient" } })
+        await prisma.$transaction([
+          prisma.patient.create({ data: { userId: user.id } }),
+          ...(patientRole && updatedUser.userRoles.length === 0
+            ? [
+                prisma.userRole.create({
+                  data: {
+                    userId: user.id,
+                    roleId: patientRole.id,
+                    assignedBy: "system",
+                  },
+                }),
+              ]
+            : []),
+        ])
+      }
+
+      AuditService.record({
+        action: AuditAction.USER_LOGIN,
+        resourceType: "user",
+        resourceId: user.id,
+        resourceLabel: user.email ?? user.nameEn,
+        actor: { id: user.id, name: user.nameEn },
+        metadata: { provider: "nextauth" },
       })
     },
   },

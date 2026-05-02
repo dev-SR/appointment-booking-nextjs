@@ -10,6 +10,8 @@ import { validateBooking, canCancelAppointment, canRescheduleAppointment } from 
 import { calculateFee } from './pricing.service'
 import { generateSlots } from './slot-engine.service'
 import type { CreateAppointmentInput, ListAppointmentsQuery } from '@/lib/zod-schemas/appointment'
+import { AuditService } from '@/lib/audit/audit.service'
+import { AuditAction } from '@/app/generated/prisma/enums'
 
 /**
  * Create a new appointment with full booking flow
@@ -115,6 +117,24 @@ export async function createAppointment(
     return { appointment, payment }
   })
 
+  AuditService.record({
+    action: AuditAction.APPOINTMENT_CREATED,
+    resourceType: 'appointment',
+    resourceId: result.appointment.id,
+    resourceLabel: `Appointment #${result.appointment.serialNumber}`,
+    actor: { id: bookedById },
+    newValue: {
+      patientId,
+      doctorId: input.doctorId,
+      chamberId: input.chamberId,
+      date: input.date.toISOString(),
+      startTime: input.startTime,
+      endTime: input.endTime,
+      status: result.appointment.status,
+      finalFee: result.appointment.finalFee,
+    },
+  })
+
   return {
     success: true as const,
     data: {
@@ -210,6 +230,20 @@ export async function cancelAppointment(
     },
   })
 
+  AuditService.record({
+    action: AuditAction.APPOINTMENT_CANCELLED,
+    resourceType: 'appointment',
+    resourceId: appointment.id,
+    resourceLabel: `Appointment #${appointment.serialNumber}`,
+    actor: { id: cancelledById },
+    changedFields: ['status', 'cancelReason', 'cancelledAt', 'cancelledById'],
+    newValue: {
+      status: appointment.status,
+      cancelReason: appointment.cancelReason,
+      cancelledAt: appointment.cancelledAt?.toISOString() ?? null,
+    },
+  })
+
   return { success: true as const, data: appointment }
 }
 
@@ -226,6 +260,18 @@ export async function checkInAppointment(id: string) {
   const updated = await prisma.appointment.update({
     where: { id },
     data: { status: 'CHECKED_IN', checkedInAt: new Date() },
+  })
+
+  AuditService.record({
+    action: AuditAction.APPOINTMENT_CHECKED_IN,
+    resourceType: 'appointment',
+    resourceId: updated.id,
+    resourceLabel: `Appointment #${updated.serialNumber}`,
+    changedFields: ['status', 'checkedInAt'],
+    newValue: {
+      status: updated.status,
+      checkedInAt: updated.checkedInAt?.toISOString() ?? null,
+    },
   })
 
   return { success: true as const, data: updated }
@@ -246,6 +292,18 @@ export async function completeAppointment(id: string) {
     data: { status: 'COMPLETED', completedAt: new Date() },
   })
 
+  AuditService.record({
+    action: AuditAction.APPOINTMENT_COMPLETED,
+    resourceType: 'appointment',
+    resourceId: updated.id,
+    resourceLabel: `Appointment #${updated.serialNumber}`,
+    changedFields: ['status', 'completedAt'],
+    newValue: {
+      status: updated.status,
+      completedAt: updated.completedAt?.toISOString() ?? null,
+    },
+  })
+
   return { success: true as const, data: updated }
 }
 
@@ -259,6 +317,15 @@ export async function markNoShow(id: string) {
   const updated = await prisma.appointment.update({
     where: { id },
     data: { status: 'NO_SHOW' },
+  })
+
+  AuditService.record({
+    action: AuditAction.APPOINTMENT_NO_SHOW,
+    resourceType: 'appointment',
+    resourceId: updated.id,
+    resourceLabel: `Appointment #${updated.serialNumber}`,
+    changedFields: ['status'],
+    newValue: { status: updated.status },
   })
 
   return { success: true as const, data: updated }

@@ -89,7 +89,7 @@ export function StepPayment() {
         </Button>
         <div>
           <h2 className="text-2xl font-bold">Payment</h2>
-          <p className="text-muted-foreground mt-1">Choose how you'd like to pay</p>
+          <p className="text-muted-foreground mt-1">Choose how you&apos;d like to pay</p>
         </div>
       </div>
 

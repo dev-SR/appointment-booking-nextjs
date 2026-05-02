@@ -8,12 +8,15 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { signOut } from "next-auth/react"
 import { cn } from "@/lib/utils"
+import { usePermissions } from "@/lib/hooks/usePermissions"
 import { Button } from "@/components/ui/button"
 import {
   LayoutDashboard, Calendar, Users, UserCog, Shield,
   CreditCard, BarChart3, Settings, FileText, Clock,
   Stethoscope, ChevronLeft, ChevronRight, LogOut, Menu,
+  UserRound, WalletCards, HeartHandshake, ClipboardList,
 } from "lucide-react"
 
 interface NavItem {
@@ -21,6 +24,8 @@ interface NavItem {
   href: string
   icon: React.ComponentType<{ className?: string }>
   permission?: string
+  any?: string[]
+  all?: string[]
 }
 
 interface PortalSidebarProps {
@@ -33,6 +38,13 @@ export function PortalSidebar({ portalName, navItems, children }: PortalSidebarP
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
+  const { can, canAny, canAll } = usePermissions()
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.permission && !can(item.permission)) return false
+    if (item.any && !canAny(item.any)) return false
+    if (item.all && !canAll(item.all)) return false
+    return true
+  })
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -76,7 +88,7 @@ export function PortalSidebar({ portalName, navItems, children }: PortalSidebarP
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
           <ul className="space-y-1">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
               return (
@@ -105,6 +117,7 @@ export function PortalSidebar({ portalName, navItems, children }: PortalSidebarP
           <Button
             variant="ghost"
             className={cn("w-full justify-start gap-3 text-muted-foreground", collapsed && "justify-center")}
+            onClick={() => signOut({ callbackUrl: "/login" })}
           >
             <LogOut className="h-4 w-4" />
             {!collapsed && <span className="text-sm">Sign Out</span>}
@@ -138,15 +151,45 @@ export function PortalSidebar({ portalName, navItems, children }: PortalSidebarP
 
 // Pre-configured nav items for each portal
 export const ADMIN_NAV: NavItem[] = [
-  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { label: "Appointments", href: "/admin/appointments", icon: Calendar },
-  { label: "Doctors", href: "/admin/doctors", icon: Stethoscope },
-  { label: "Patients", href: "/admin/patients", icon: Users },
-  { label: "Staff & Roles", href: "/admin/staff", icon: UserCog },
-  { label: "Permissions", href: "/admin/roles", icon: Shield },
-  { label: "Queue", href: "/admin/queue", icon: Clock },
-  { label: "Payments", href: "/admin/payments", icon: CreditCard },
-  { label: "Reports", href: "/admin/reports", icon: BarChart3 },
-  { label: "Settings", href: "/admin/settings", icon: Settings },
-  { label: "Audit Logs", href: "/admin/audit", icon: FileText },
+  { label: "Dashboard", href: "/admin", icon: LayoutDashboard, any: ["dashboard:view:admin", "settings:manage"] },
+  { label: "Appointments", href: "/admin/appointments", icon: Calendar, permission: "appointments:read:all" },
+  { label: "Doctors", href: "/admin/doctors", icon: Stethoscope, any: ["doctors:read:all", "doctors:read"] },
+  { label: "Patients", href: "/admin/patients", icon: Users, permission: "patients:read:all" },
+  { label: "Staff & Roles", href: "/admin/staff", icon: UserCog, permission: "staff:manage" },
+  { label: "Permissions", href: "/admin/roles", icon: Shield, permission: "roles:manage" },
+  { label: "Queue", href: "/admin/queue", icon: Clock, permission: "queue:manage" },
+  { label: "Payments", href: "/admin/payments", icon: CreditCard, permission: "payments:read:all" },
+  { label: "Reports", href: "/admin/reports", icon: BarChart3, any: ["reports:view:financial", "reports:view:operational"] },
+  { label: "Settings", href: "/admin/settings", icon: Settings, permission: "settings:manage" },
+  { label: "Audit Logs", href: "/admin/audit", icon: FileText, permission: "audit:view" },
+]
+
+export const RECEPTIONIST_NAV: NavItem[] = [
+  { label: "Dashboard", href: "/receptionist", icon: LayoutDashboard, any: ["dashboard:view:receptionist", "appointments:create"] },
+  { label: "Fast Booking", href: "/booking", icon: Calendar, permission: "appointments:create" },
+  { label: "Today's Board", href: "/receptionist", icon: ClipboardList, permission: "appointments:read:all" },
+  { label: "Patients", href: "/receptionist", icon: Users, permission: "patients:read:all" },
+  { label: "Queue", href: "/receptionist", icon: Clock, permission: "queue:manage" },
+]
+
+export const DOCTOR_NAV: NavItem[] = [
+  { label: "Dashboard", href: "/doctor", icon: LayoutDashboard, any: ["dashboard:view:doctor", "appointments:read:own"] },
+  { label: "Patients", href: "/doctor", icon: Users, permission: "patients:read:assigned" },
+  { label: "Schedule", href: "/doctor", icon: Calendar, permission: "schedule:manage:own" },
+  { label: "Profile", href: "/doctor", icon: UserRound, permission: "doctors:update:own" },
+]
+
+export const ACCOUNTANT_NAV: NavItem[] = [
+  { label: "Dashboard", href: "/accountant", icon: LayoutDashboard, any: ["dashboard:view:accountant", "payments:read:all"] },
+  { label: "Collections", href: "/accountant", icon: WalletCards, permission: "payments:read:all" },
+  { label: "Refunds", href: "/accountant", icon: CreditCard, permission: "payments:refund" },
+  { label: "Reports", href: "/accountant", icon: BarChart3, permission: "reports:view:financial" },
+]
+
+export const PATIENT_NAV: NavItem[] = [
+  { label: "Dashboard", href: "/patient", icon: LayoutDashboard, any: ["dashboard:view:patient", "appointments:read:own"] },
+  { label: "Book Visit", href: "/booking", icon: Calendar, permission: "appointments:create" },
+  { label: "Appointments", href: "/patient", icon: ClipboardList, permission: "appointments:read:own" },
+  { label: "Family", href: "/patient", icon: HeartHandshake, permission: "patients:update:own" },
+  { label: "Payments", href: "/patient", icon: CreditCard, permission: "payments:read:own" },
 ]

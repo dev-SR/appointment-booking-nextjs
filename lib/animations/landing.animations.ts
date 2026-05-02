@@ -137,7 +137,7 @@ export function initLandingAnimations(container: HTMLDivElement) {
     );
 
     // 6. Testimonials (Alternating Slide-in)
-    gsap.utils.toArray('.testimonial-card').forEach((card: any, i) => {
+    gsap.utils.toArray<HTMLElement>('.testimonial-card').forEach((card, i) => {
       const isOdd = i % 2 !== 0;
       gsap.fromTo(card,
         { x: isOdd ? -50 : 50, opacity: 0 },

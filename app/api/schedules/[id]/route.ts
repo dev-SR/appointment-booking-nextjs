@@ -19,8 +19,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
 
     return NextResponse.json({ success: true, data: schedule })
-  } catch (error: any) {
-    if (error.message === 'Forbidden') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Forbidden') {
       return NextResponse.json({ success: false, error: 'PERMISSION_DENIED' }, { status: 403 })
     }
     return NextResponse.json({ success: false, error: 'INTERNAL_ERROR' }, { status: 500 })
@@ -46,8 +46,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     const updated = await ScheduleService.updateSchedule(id, parsed.data)
     return NextResponse.json({ success: true, data: updated })
-  } catch (error: any) {
-    if (error.message === 'Forbidden') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Forbidden') {
       return NextResponse.json({ success: false, error: 'PERMISSION_DENIED' }, { status: 403 })
     }
     return NextResponse.json({ success: false, error: 'INTERNAL_ERROR' }, { status: 500 })
@@ -66,8 +66,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
     await ScheduleService.deleteSchedule(id)
     return NextResponse.json({ success: true })
-  } catch (error: any) {
-    if (error.message === 'Forbidden') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Forbidden') {
       return NextResponse.json({ success: false, error: 'PERMISSION_DENIED' }, { status: 403 })
     }
     return NextResponse.json({ success: false, error: 'INTERNAL_ERROR' }, { status: 500 })

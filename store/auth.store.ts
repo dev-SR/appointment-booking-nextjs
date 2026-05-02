@@ -8,7 +8,8 @@
  */
 
 import { create } from "zustand"
-import { persist, createJSONStorage } from "zustand/middleware"
+import { persist } from "zustand/middleware"
+import { type PersistStorage, type StorageValue } from "zustand/middleware"
 
 interface User {
   id: string
@@ -36,26 +37,46 @@ interface AuthState {
   updateUser: (updates: Partial<User>) => void
 }
 
-import { type PersistStorage } from "zustand/middleware"
+interface PersistedAuthState {
+  user: User | null
+  permissions: Set<string>
+  isAuthenticated: boolean
+}
+
+type SerializedAuthState = Omit<PersistedAuthState, "permissions"> & {
+  permissions?: string[]
+}
 
 // Custom storage to handle Set serialization
-const customStorage: PersistStorage<any> = {
+const customStorage: PersistStorage<PersistedAuthState> = {
   getItem: (name: string) => {
     const str = localStorage.getItem(name)
     if (!str) return null
 
     try {
-      const data = JSON.parse(str)
+      const data = JSON.parse(str) as StorageValue<SerializedAuthState>
       // Convert permissions array back to Set
       if (data.state?.permissions) {
-        data.state.permissions = new Set(data.state.permissions)
+        return {
+          ...data,
+          state: {
+            ...data.state,
+            permissions: new Set(data.state.permissions),
+          },
+        }
       }
-      return data
+      return {
+        ...data,
+        state: {
+          ...data.state,
+          permissions: new Set<string>(),
+        },
+      }
     } catch {
       return null
     }
   },
-  setItem: (name: string, value: any) => {
+  setItem: (name: string, value: StorageValue<PersistedAuthState>) => {
     const serializable = {
       ...value,
       state: {

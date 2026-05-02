@@ -1,11 +1,29 @@
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MapPin, Star } from "lucide-react"
 import Link from "next/link"
 
+interface DoctorCardDoctor {
+  id: string
+  titleEn?: string | null
+  qualificationsEn?: string | null
+  consultationFee?: number | null
+  user?: {
+    nameEn?: string | null
+  } | null
+  specialty?: {
+    nameEn?: string | null
+  } | null
+  chambers?: Array<{
+    isPrimary?: boolean
+    chamber?: {
+      nameEn?: string | null
+    } | null
+  }>
+}
+
 interface DoctorCardProps {
-  doctor: any
+  doctor: DoctorCardDoctor
 }
 
 export function DoctorCard({ doctor }: DoctorCardProps) {
@@ -14,7 +32,7 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
   const specialty = doctor.specialty?.nameEn || "General"
   const qualifications = doctor.qualificationsEn || "MBBS"
   const primaryChamber =
-    doctor.chambers?.find((c: any) => c.isPrimary)?.chamber ||
+    doctor.chambers?.find((chamber) => chamber.isPrimary)?.chamber ||
     doctor.chambers?.[0]?.chamber
   const chamberName = primaryChamber?.nameEn || "Clinic"
   const fee = doctor.consultationFee ? doctor.consultationFee / 100 : 0

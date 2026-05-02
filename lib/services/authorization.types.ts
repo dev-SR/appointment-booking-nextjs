@@ -57,8 +57,13 @@ export const PERMISSIONS = {
   APPOINTMENTS_UPDATE_ANY: "appointments:update:any",
   APPOINTMENTS_CANCEL_OWN: "appointments:cancel:own",
   APPOINTMENTS_CANCEL_ANY: "appointments:cancel:any",
+  APPOINTMENTS_RESCHEDULE_OWN: "appointments:reschedule:own",
+  APPOINTMENTS_RESCHEDULE_ANY: "appointments:reschedule:any",
+  APPOINTMENTS_CHECKIN_ANY: "appointments:checkin:any",
+  APPOINTMENTS_COMPLETE_OWN: "appointments:complete:own",
 
   // Doctors
+  DOCTORS_READ: "doctors:read",
   DOCTORS_CREATE: "doctors:create",
   DOCTORS_READ_ALL: "doctors:read:all",
   DOCTORS_UPDATE_OWN: "doctors:update:own",
@@ -76,6 +81,8 @@ export const PERMISSIONS = {
   // Payments
   PAYMENTS_READ_OWN: "payments:read:own",
   PAYMENTS_READ_ALL: "payments:read:all",
+  PAYMENTS_CREATE: "payments:create",
+  PAYMENTS_UPDATE_ANY: "payments:update:any",
   PAYMENTS_REFUND: "payments:refund",
 
   // Queue
@@ -98,9 +105,22 @@ export const PERMISSIONS = {
   SETTINGS_MANAGE: "settings:manage",
   SETTINGS_VIEW: "settings:view",
 
+  // Chambers and specialties
+  CHAMBERS_READ: "chambers:read",
+  CHAMBERS_MANAGE: "chambers:manage",
+  SPECIALTIES_READ: "specialties:read",
+  SPECIALTIES_MANAGE: "specialties:manage",
+
   // Schedule
   SCHEDULE_MANAGE_OWN: "schedule:manage:own",
   SCHEDULE_MANAGE_ANY: "schedule:manage:any",
+
+  // Dashboards
+  DASHBOARD_VIEW_ADMIN: "dashboard:view:admin",
+  DASHBOARD_VIEW_RECEPTIONIST: "dashboard:view:receptionist",
+  DASHBOARD_VIEW_DOCTOR: "dashboard:view:doctor",
+  DASHBOARD_VIEW_ACCOUNTANT: "dashboard:view:accountant",
+  DASHBOARD_VIEW_PATIENT: "dashboard:view:patient",
 
   // Invoices
   INVOICES_GENERATE: "invoices:generate",
@@ -116,62 +136,3 @@ export const PERMISSIONS = {
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]
 
-// Default system roles with their permissions
-export const SYSTEM_ROLES = {
-  SUPER_ADMIN: {
-    name: "super_admin",
-    displayName: "Super Admin",
-    isSystem: true,
-    permissions: [PERMISSIONS.ALL],
-  },
-  RECEPTIONIST: {
-    name: "receptionist",
-    displayName: "Receptionist",
-    isSystem: true,
-    permissions: [
-      PERMISSIONS.APPOINTMENTS_CREATE,
-      PERMISSIONS.APPOINTMENTS_READ_ALL,
-      PERMISSIONS.APPOINTMENTS_CANCEL_ANY,
-      PERMISSIONS.QUEUE_MANAGE,
-      PERMISSIONS.PATIENTS_READ_ALL,
-      PERMISSIONS.INVOICES_GENERATE,
-    ],
-  },
-  DOCTOR: {
-    name: "doctor",
-    displayName: "Doctor",
-    isSystem: true,
-    permissions: [
-      PERMISSIONS.APPOINTMENTS_READ_OWN,
-      PERMISSIONS.APPOINTMENTS_UPDATE_OWN,
-      PERMISSIONS.PATIENTS_READ_ASSIGNED,
-      PERMISSIONS.DOCTORS_UPDATE_OWN,
-      PERMISSIONS.SCHEDULE_MANAGE_OWN,
-    ],
-  },
-  ACCOUNTANT: {
-    name: "accountant",
-    displayName: "Accountant",
-    isSystem: true,
-    permissions: [
-      PERMISSIONS.PAYMENTS_READ_ALL,
-      PERMISSIONS.PAYMENTS_REFUND,
-      PERMISSIONS.REPORTS_VIEW_FINANCIAL,
-      PERMISSIONS.INVOICES_GENERATE,
-    ],
-  },
-  PATIENT: {
-    name: "patient",
-    displayName: "Patient",
-    isSystem: true,
-    permissions: [
-      PERMISSIONS.APPOINTMENTS_CREATE,
-      PERMISSIONS.APPOINTMENTS_READ_OWN,
-      PERMISSIONS.APPOINTMENTS_CANCEL_OWN,
-      PERMISSIONS.PAYMENTS_READ_OWN,
-      PERMISSIONS.PATIENTS_UPDATE_OWN,
-    ],
-  },
-} as const
-
-export type SystemRoleName = keyof typeof SYSTEM_ROLES

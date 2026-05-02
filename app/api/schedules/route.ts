@@ -23,8 +23,8 @@ export async function GET(req: Request) {
 
     const schedules = await ScheduleService.getDoctorSchedules(doctorId)
     return NextResponse.json({ success: true, data: schedules })
-  } catch (error: any) {
-    if (error.message === 'Forbidden') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Forbidden') {
       return NextResponse.json({ success: false, error: 'PERMISSION_DENIED' }, { status: 403 })
     }
     return NextResponse.json({ success: false, error: 'INTERNAL_ERROR' }, { status: 500 })
@@ -49,8 +49,8 @@ export async function POST(req: Request) {
 
     const newSchedule = await ScheduleService.createSchedule(parsed.data)
     return NextResponse.json({ success: true, data: newSchedule }, { status: 201 })
-  } catch (error: any) {
-    if (error.message === 'Forbidden') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Forbidden') {
       return NextResponse.json({ success: false, error: 'PERMISSION_DENIED' }, { status: 403 })
     }
     return NextResponse.json({ success: false, error: 'INTERNAL_ERROR' }, { status: 500 })

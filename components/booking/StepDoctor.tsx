@@ -42,8 +42,8 @@ export function StepDoctor() {
     },
   })
 
-  const doctors = data?.success ? data.data?.data || [] : []
-  const specialties = specialtiesData?.success ? specialtiesData.data?.data || [] : []
+  const doctors = data?.success ? data.data || [] : []
+  const specialties = specialtiesData?.success ? specialtiesData.data || [] : []
 
   const handleSelect = (doc: Record<string, unknown>) => {
     const selected: SelectedDoctor = {

@@ -29,9 +29,20 @@ const STEPS = [
   { num: 7, label: "Confirm", labelBn: "নিশ্চিত" },
 ]
 
-export function BookingWizard() {
+import type { SelectedDoctor } from "@/store/booking.store"
+
+export function BookingWizard({ initialDoctor }: { initialDoctor?: SelectedDoctor }) {
   const currentStep = useBookingStore((s) => s.currentStep)
+  const setDoctor = useBookingStore((s) => s.setDoctor)
+  const setStep = useBookingStore((s) => s.setStep)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (initialDoctor && currentStep === 1) {
+      setDoctor(initialDoctor)
+      setStep(2)
+    }
+  }, [initialDoctor, setDoctor, setStep, currentStep])
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">

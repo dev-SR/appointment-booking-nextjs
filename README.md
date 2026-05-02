@@ -154,8 +154,10 @@ NEXTAUTH_URL=http://localhost:3000
 
 ## ✅ Completed Phases
 
-- **Phase 1** — Foundation (DB schema, PBAC, Auth)
-- **Phase 2** — Core Entities (Doctor, Patient, Chamber, Schedule)
-- **Phase 3** — Slot Engine (generation, availability APIs)
-- **Phase 4** — Booking Flow (7-step wizard, appointment lifecycle)
-- **Phase 11** — Landing Page & Animations (GSAP, i18n, all public pages)
+- **Phase 1** — Foundation (DB schema, Prisma client, seed data)
+- **Phase 2** — Auth & PBAC (NextAuth v5, PBAC service, dynamic permissions)
+- **Phase 3** — Portal Dashboards & Auth Routes (Role/Permission CRUD Management, Portal Guards)
+- **Phase 4** — Core Entities (Doctor, Patient, Chamber, Schedule APIs)
+- **Phase 5** — Slot Engine (Slot generation, availability, booking rules)
+- **Phase 6** — Booking Flow (7-step wizard, appointment lifecycle, testing setup)
+- **Phase 11** — Landing Page & UI (GSAP animations, i18n, responsive design)

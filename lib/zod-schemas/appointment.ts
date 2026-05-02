@@ -71,15 +71,15 @@ export type RescheduleAppointmentInput = z.infer<typeof rescheduleAppointmentSch
 
 // List appointments query
 export const listAppointmentsQuerySchema = paginationSchema.extend({
-  patientId: z.string().optional(),
-  doctorId: z.string().optional(),
-  chamberId: z.string().optional(),
-  dateFrom: z.coerce.date().optional(),
-  dateTo: z.coerce.date().optional(),
-  status: appointmentStatusEnum.optional(),
-  type: appointmentTypeEnum.optional(),
-  sortBy: z.enum(['date', 'createdAt', 'serialNumber']).default('date'),
-  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+  patientId: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  doctorId: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  chamberId: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional()),
+  dateFrom: z.preprocess((val) => (val === '' ? undefined : val), z.coerce.date().optional()),
+  dateTo: z.preprocess((val) => (val === '' ? undefined : val), z.coerce.date().optional()),
+  status: z.preprocess((val) => (val === '' ? undefined : val), appointmentStatusEnum.optional()),
+  type: z.preprocess((val) => (val === '' ? undefined : val), appointmentTypeEnum.optional()),
+  sortBy: z.preprocess((val) => (val === '' ? undefined : val), z.enum(['date', 'createdAt', 'serialNumber']).default('date')),
+  sortOrder: z.preprocess((val) => (val === '' ? undefined : val), z.enum(['asc', 'desc']).default('desc')),
 });
 
 export type ListAppointmentsQuery = z.infer<typeof listAppointmentsQuerySchema>;

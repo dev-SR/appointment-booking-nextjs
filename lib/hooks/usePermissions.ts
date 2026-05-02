@@ -10,11 +10,12 @@
  * {can('appointments:cancel:any') && <CancelButton />}
  */
 
-import { useAuthStore } from "@/store/auth.store"
+import { useSession } from "next-auth/react"
 import { PERMISSIONS, type PermissionKey } from "@/lib/services/authorization.types"
 
 export function usePermissions() {
-  const permissions = useAuthStore((state) => state.permissions)
+  const { data: session } = useSession()
+  const permissions = new Set(session?.user?.permissions || [])
 
   /**
    * Check if user has a specific permission
@@ -22,7 +23,7 @@ export function usePermissions() {
    */
   const can = (permission: string): boolean => {
     // Not authenticated
-    if (!permissions || permissions.size === 0) {
+    if (!session || permissions.size === 0) {
       return false
     }
 

@@ -47,6 +47,14 @@ export default function AdminAppointmentsPage() {
   const result = data as Record<string, unknown> | undefined
   const appointments = (result?.data || []) as Record<string, unknown>[]
   const pagination = result?.pagination as Record<string, number> | undefined
+  const summary = result?.summary as Record<string, number> | undefined
+
+  const stats = [
+    { label: "Total Appointments", value: summary?.total ?? 0, icon: Calendar, color: "text-blue-600" },
+    { label: "Confirmed", value: summary?.confirmed ?? 0, icon: CheckCircle2, color: "text-green-600" },
+    { label: "Pending", value: summary?.pending ?? 0, icon: Clock, color: "text-amber-600" },
+    { label: "Cancelled", value: summary?.cancelled ?? 0, icon: XCircle, color: "text-red-600" },
+  ]
 
   return (
     <div className="space-y-6">
@@ -54,24 +62,21 @@ export default function AdminAppointmentsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Appointments</h1>
-          <p className="text-muted-foreground mt-1">Manage all appointments across the system</p>
+          <p className="text-muted-foreground mt-1">Manage and monitor all appointments</p>
         </div>
       </div>
 
       {/* Stats cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        {[
-          { label: "Total Today", value: "—", icon: Calendar, color: "text-blue-600" },
-          { label: "Confirmed", value: "—", icon: CheckCircle2, color: "text-green-600" },
-          { label: "Pending", value: "—", icon: Clock, color: "text-amber-600" },
-          { label: "Cancelled", value: "—", icon: XCircle, color: "text-red-600" },
-        ].map((stat) => (
+        {stats.map((stat) => (
           <Card key={stat.label}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
-                  <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {isLoading ? "..." : stat.value.toLocaleString()}
+                  </p>
                 </div>
                 <stat.icon className={`h-8 w-8 ${stat.color} opacity-70`} />
               </div>

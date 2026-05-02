@@ -187,7 +187,7 @@ export async function listAppointments(query: ListAppointmentsQuery) {
   const orderBy: Record<string, any> = {}
   orderBy[sortBy] = sortOrder
 
-  const [appointments, total] = await Promise.all([
+  const [appointments, total, summary] = await Promise.all([
     prisma.appointment.findMany({
       where,
       skip: (page - 1) * limit,
@@ -201,11 +201,24 @@ export async function listAppointments(query: ListAppointmentsQuery) {
       },
     }),
     prisma.appointment.count({ where }),
+    prisma.appointment.groupBy({
+      by: ['status'],
+      where: where,
+      _count: true,
+    }),
   ])
+
+  const stats = {
+    total: summary.reduce((acc, curr) => acc + curr._count, 0),
+    confirmed: summary.filter(s => ['CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'].includes(s.status)).reduce((acc, curr) => acc + curr._count, 0),
+    pending: summary.filter(s => s.status === 'PENDING').reduce((acc, curr) => acc + curr._count, 0),
+    cancelled: summary.filter(s => s.status === 'CANCELLED').reduce((acc, curr) => acc + curr._count, 0),
+  }
 
   return {
     data: appointments.map(transformAppointment),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    summary: stats,
   }
 }
 

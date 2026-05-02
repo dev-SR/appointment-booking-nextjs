@@ -29,8 +29,8 @@ Phase 15 · Deployment         Dockerfile · docker-compose · CI/CD
 ## COMPLETED PHASES & TASKS
 
 - **Phase 1 (Foundation):** DB schema, Prisma client, seed data completed.
-- **Phase 2 (Auth & PBAC):** NextAuth v5 with Google/Facebook OAuth + credentials, PBAC authorization service, permission constants, cache, and `usePermissions` hook completed. No OTP.
-- **Phase 3 (Portal Dashboards):** Auth routes, portal route guards, dashboard shells with permission-aware widgets, Role & Permission Management UI, portal switcher, and post-login redirect logic completed.
+- **Phase 2 (Auth & PBAC):** NextAuth v5 with Google/Facebook OAuth + credentials, PBAC authorization service, permission constants, cache, and `usePermissions` hook completed. Hardcoded roles removed for fully dynamic database-driven permissions.
+- **Phase 3 (Portal Dashboards):** Auth routes, portal route guards, dashboard shells with permission-aware widgets, full **Role & Permission CRUD Management UI**, portal switcher, and post-login redirect logic completed.
 - **Phase 5 (Core Entities):** Doctor, Patient, Chamber, and Schedule models & APIs completed.
 - **Phase 6 (Slot Engine):** Slot generation engine, availability APIs, and fix for infinite request loops in `StepDate.tsx` completed.
 - **Phase 7 (Booking Flow):** 7-step booking wizard with auto-selection support (`?doctorId=`) and full appointment lifecycle APIs completed. Cash/Pay Later implemented; online payment deferred to Phase 9.

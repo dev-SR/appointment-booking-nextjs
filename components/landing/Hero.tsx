@@ -62,7 +62,7 @@ export function Hero() {
 
             <div className="flex flex-wrap gap-4 pt-4 border-t">
               <Button size="lg" asChild className="w-full sm:w-auto">
-                <TransitionLink href="/book">{isEn ? 'Book Appointment' : 'অ্যাপয়েন্টমেন্ট বুক করুন'}</TransitionLink>
+                <TransitionLink href="/booking">{isEn ? 'Book Appointment' : 'অ্যাপয়েন্টমেন্ট বুক করুন'}</TransitionLink>
               </Button>
               <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
                 <TransitionLink href="/doctors">{isEn ? 'View Doctors' : 'ডাক্তারদের দেখুন'}</TransitionLink>

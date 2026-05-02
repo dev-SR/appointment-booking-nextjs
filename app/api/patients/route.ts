@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     if (!query.success) {
       return NextResponse.json(
-        { success: false, validationErrors: query.error.errors },
+        { success: false, validationErrors: query.error.issues },
         { status: 400 }
       );
     }
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, validationErrors: parsed.error.errors },
+        { success: false, validationErrors: parsed.error.issues },
         { status: 400 }
       );
     }

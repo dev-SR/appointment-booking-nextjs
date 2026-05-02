@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          validationErrors: parsed.error.errors,
+          validationErrors: parsed.error.issues,
         },
         { status: 400 }
       )

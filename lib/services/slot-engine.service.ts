@@ -14,7 +14,8 @@
  * 7. Return array of { startTime, endTime, isAvailable, remainingSlots }
  */
 
-import prisma from '@/lib/prisma'
+import prisma from '@/lib/prisma';
+import { Prisma } from '@/app/generated/prisma/client';
 import { format, addDays, isSameDay } from 'date-fns'
 import type { SlotResponse, AvailableSlotsResponse } from '@/lib/zod-schemas/slot'
 
@@ -126,7 +127,7 @@ async function getExistingAppointments(doctorId: string, date: Date, chamberId?:
   const endOfDay = new Date(date)
   endOfDay.setHours(23, 59, 59, 999)
 
-  const where: Parameters<typeof prisma.appointment.findMany>[0]['where'] = {
+  const where: Prisma.AppointmentWhereInput = {
     doctorId,
     date: {
       gte: startOfDay,

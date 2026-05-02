@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { Prisma } from '@/app/generated/prisma/client';
 import type {
   CreatePatientInput,
   UpdatePatientOwnInput,
@@ -165,7 +166,7 @@ export class PatientService {
   static async list(query: ListPatientsQuery) {
     const { page, limit, q, gender, bloodGroup, sortBy, sortOrder } = query;
 
-    const where: Parameters<typeof prisma.patient.findMany>[0]['where'] = {};
+    const where: Prisma.PatientWhereInput = {};
 
     // Search by name, phone, or email
     if (q) {
@@ -181,7 +182,7 @@ export class PatientService {
     if (bloodGroup) where.bloodGroup = bloodGroup;
 
     // Build order by
-    const orderBy: Parameters<typeof prisma.patient.findMany>[0]['orderBy'] = {};
+    const orderBy: Prisma.PatientOrderByWithRelationInput = {};
     if (sortBy === 'nameEn') {
       orderBy.user = { nameEn: sortOrder };
     } else if (sortBy === 'createdAt') {

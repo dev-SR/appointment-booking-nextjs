@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { Prisma } from '@/app/generated/prisma/client';
 import type {
   CreateDoctorInput,
   UpdateDoctorAdminInput,
@@ -11,7 +12,7 @@ import type {
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // Transform DB doctor to response format
-function transformDoctor(doctor: Awaited<ReturnType<typeof prisma.doctor.findUnique>> & { user?: { nameEn: string; nameBn: string | null; profileImageUrl: string | null; phone: string } }) {
+function transformDoctor(doctor: Awaited<ReturnType<typeof prisma.doctor.findUnique>> & { user?: { nameEn: string; nameBn: string | null; profileImageUrl: string | null; phone?: string } }) {
   if (!doctor) return null;
   return {
     id: doctor.id,
@@ -195,7 +196,7 @@ export class DoctorService {
   static async list(query: ListDoctorsQuery) {
     const { page, limit, q, specialtyId, chamberId, isAvailable, minExperience, maxFee, sortBy, sortOrder } = query;
 
-    const where: Parameters<typeof prisma.doctor.findMany>[0]['where'] = {};
+    const where: Prisma.DoctorWhereInput = {};
 
     // Search by name or registration number
     if (q) {
@@ -217,7 +218,7 @@ export class DoctorService {
     }
 
     // Build order by
-    const orderBy: Parameters<typeof prisma.doctor.findMany>[0]['orderBy'] = {};
+    const orderBy: Prisma.DoctorOrderByWithRelationInput = {};
     if (sortBy === 'nameEn') {
       orderBy.user = { nameEn: sortOrder };
     } else {
@@ -312,7 +313,7 @@ export class DoctorService {
         bioBn: input.bioBn,
         qualificationsEn: input.qualificationsEn,
         qualificationsBn: input.qualificationsBn,
-        specialtyId: input.specialtyId,
+        specialty: input.specialtyId ? { connect: { id: input.specialtyId } } : undefined,
         experienceYears: input.experienceYears,
         consultationFee: input.consultationFee,
         followUpFee: input.followUpFee,
@@ -418,7 +419,7 @@ export class SpecialtyService {
   static async list(query: { page: number; limit: number; isActive?: boolean; q?: string }) {
     const { page, limit, isActive, q } = query;
 
-    const where: Parameters<typeof prisma.specialty.findMany>[0]['where'] = {};
+    const where: Prisma.SpecialtyWhereInput = {};
     if (typeof isActive === 'boolean') where.isActive = isActive;
     if (q) {
       where.OR = [

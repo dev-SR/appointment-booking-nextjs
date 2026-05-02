@@ -60,9 +60,9 @@ export function Navbar() {
             variant="outline"
             onClick={toggleLanguage}
             title="Toggle Language"
-            className="font-bold w-12"
+            className="w-12 font-bold"
           >
-            {i18n.language === 'en' ? 'EN' : 'বাং'}
+            {i18n.language === "en" ? "EN" : "বাং"}
           </Button>
           <Button
             variant="ghost"
@@ -74,7 +74,7 @@ export function Navbar() {
             <Moon className="absolute h-4 w-4 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
           </Button>
           <Button asChild>
-            <TransitionLink href="/book">
+            <TransitionLink href="/booking">
               {t("nav.book_appointment", "Book Appointment")}
             </TransitionLink>
           </Button>
@@ -102,8 +102,12 @@ export function Navbar() {
                   {link.label}
                 </TransitionLink>
               ))}
-              <div className="mt-4 flex gap-4 w-full">
-                <Button variant="outline" className="flex-1" onClick={toggleLanguage}>
+              <div className="mt-4 flex w-full gap-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={toggleLanguage}
+                >
                   {i18n.language === "en" ? "বাংলায় দেখুন" : "View in English"}
                 </Button>
                 <Button
@@ -117,7 +121,7 @@ export function Navbar() {
               </div>
               <Button className="mt-auto mb-8 w-full" asChild>
                 <TransitionLink
-                  href="/book"
+                  href="/booking"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {t("nav.book_appointment", "Book Appointment")}

@@ -20,7 +20,7 @@ export async function CtaBanner() {
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Button size="lg" variant="secondary" asChild className="font-bold text-base h-14 px-8">
-            <Link href="/book">{isEn ? 'Book Now' : 'এখনই বুক করুন'}</Link>
+            <Link href="/booking">{isEn ? 'Book Now' : 'এখনই বুক করুন'}</Link>
           </Button>
           <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10 h-14 px-8 font-bold" asChild>
             <Link href="/about">{isEn ? 'Learn More' : 'আরও জানুন'}</Link>

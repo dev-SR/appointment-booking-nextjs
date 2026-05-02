@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const parsed = idParamSchema.safeParse({ id });
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, validationErrors: parsed.error.errors },
+        { success: false, validationErrors: parsed.error.issues },
         { status: 400 }
       );
     }
@@ -81,7 +81,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const parsed = idParamSchema.safeParse({ id });
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, validationErrors: parsed.error.errors },
+        { success: false, validationErrors: parsed.error.issues },
         { status: 400 }
       );
     }
@@ -112,7 +112,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const validatedBody = updatePatientAdminSchema.safeParse(body);
       if (!validatedBody.success) {
         return NextResponse.json(
-          { success: false, validationErrors: validatedBody.error.errors },
+          { success: false, validationErrors: validatedBody.error.issues },
           { status: 400 }
         );
       }
@@ -122,7 +122,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const validatedBody = updatePatientOwnSchema.safeParse(body);
       if (!validatedBody.success) {
         return NextResponse.json(
-          { success: false, validationErrors: validatedBody.error.errors },
+          { success: false, validationErrors: validatedBody.error.issues },
           { status: 400 }
         );
       }
@@ -168,7 +168,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const parsed = idParamSchema.safeParse({ id });
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, validationErrors: parsed.error.errors },
+        { success: false, validationErrors: parsed.error.issues },
         { status: 400 }
       );
     }

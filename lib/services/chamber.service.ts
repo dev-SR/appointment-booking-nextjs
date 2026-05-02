@@ -1,4 +1,5 @@
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
+import { Prisma } from '@/app/generated/prisma/client';
 import type {
   CreateChamberInput,
   UpdateChamberInput,
@@ -88,7 +89,7 @@ export class ChamberService {
   static async list(query: ListChambersQuery) {
     const { page, limit, q, isActive, doctorId, sortBy, sortOrder } = query;
 
-    const where: Parameters<typeof prisma.chamber.findMany>[0]['where'] = {};
+    const where: Prisma.ChamberWhereInput = {};
 
     if (q) {
       where.OR = [
@@ -104,7 +105,7 @@ export class ChamberService {
       where.doctorChamber = { some: { doctorId } };
     }
 
-    const orderBy: Parameters<typeof prisma.chamber.findMany>[0]['orderBy'] = {
+    const orderBy: Prisma.ChamberOrderByWithRelationInput = {
       [sortBy]: sortOrder,
     };
 

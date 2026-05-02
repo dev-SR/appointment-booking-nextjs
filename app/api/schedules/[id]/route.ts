@@ -3,7 +3,8 @@ import { auth } from '@/lib/auth'
 import { requirePermission } from '@/lib/services/authorization.service'
 import { ScheduleService, updateScheduleSchema } from '@/lib/services/schedule.service'
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const session = await auth()
     if (!session?.user) {
@@ -12,7 +13,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     await requirePermission(session.user.id, 'schedule:manage:own')
 
-    const schedule = await ScheduleService.getSchedule(params.id)
+    const schedule = await ScheduleService.getSchedule(id)
     if (!schedule) {
       return NextResponse.json({ success: false, error: 'NOT_FOUND' }, { status: 404 })
     }
@@ -26,7 +27,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const session = await auth()
     if (!session?.user) {
@@ -42,7 +44,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ success: false, validationErrors: parsed.error.issues }, { status: 400 })
     }
 
-    const updated = await ScheduleService.updateSchedule(params.id, parsed.data)
+    const updated = await ScheduleService.updateSchedule(id, parsed.data)
     return NextResponse.json({ success: true, data: updated })
   } catch (error: any) {
     if (error.message === 'Forbidden') {
@@ -52,7 +54,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const session = await auth()
     if (!session?.user) {
@@ -61,7 +64,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
     await requirePermission(session.user.id, 'schedule:manage:own')
 
-    await ScheduleService.deleteSchedule(params.id)
+    await ScheduleService.deleteSchedule(id)
     return NextResponse.json({ success: true })
   } catch (error: any) {
     if (error.message === 'Forbidden') {

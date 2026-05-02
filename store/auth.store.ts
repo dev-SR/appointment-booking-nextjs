@@ -36,8 +36,10 @@ interface AuthState {
   updateUser: (updates: Partial<User>) => void
 }
 
+import { type PersistStorage } from "zustand/middleware"
+
 // Custom storage to handle Set serialization
-const customStorage = {
+const customStorage: PersistStorage<any> = {
   getItem: (name: string) => {
     const str = localStorage.getItem(name)
     if (!str) return null
@@ -53,7 +55,7 @@ const customStorage = {
       return null
     }
   },
-  setItem: (name: string, value: { state: AuthState }) => {
+  setItem: (name: string, value: any) => {
     const serializable = {
       ...value,
       state: {
@@ -115,7 +117,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth-storage",
-      storage: createJSONStorage(() => customStorage),
+      storage: customStorage,
       partialize: (state) => ({
         user: state.user,
         permissions: state.permissions,

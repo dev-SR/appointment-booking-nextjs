@@ -4,6 +4,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { I18nProvider } from "@/components/providers/i18n-provider"
 import { TransitionProvider } from "@/components/providers/transition-provider"
+import { QueryProvider } from "@/components/providers/query-provider"
 import { cn } from "@/lib/utils";
 import { cookies } from "next/headers"
 
@@ -31,7 +32,9 @@ export default async function RootLayout({
       <body>
         <I18nProvider locale={locale}>
           <TransitionProvider>
-            <ThemeProvider>{children}</ThemeProvider>
+            <QueryProvider>
+              <ThemeProvider>{children}</ThemeProvider>
+            </QueryProvider>
           </TransitionProvider>
         </I18nProvider>
       </body>

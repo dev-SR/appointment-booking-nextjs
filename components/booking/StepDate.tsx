@@ -12,13 +12,18 @@ import { Calendar } from "@/components/ui/calendar"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, CalendarDays } from "lucide-react"
-import { addDays, format } from "date-fns"
+import { addDays, format, startOfDay } from "date-fns"
 
 export function StepDate() {
   const { doctor, chamber, date: selectedDate, setDate, nextStep, prevStep } = useBookingStore()
 
-  const from = new Date()
-  const to = addDays(from, 30)
+  const { from, to } = useMemo(() => {
+    const start = startOfDay(new Date())
+    return {
+      from: start,
+      to: addDays(start, 30),
+    }
+  }, [])
 
   const { data: datesData, isLoading } = useAvailableDates(
     doctor?.id || null,

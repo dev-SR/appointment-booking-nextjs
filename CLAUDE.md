@@ -44,6 +44,8 @@ Doctor Appointment Booking System for the Bangladesh market. Next.js 16 App Rout
 - No caching (per user decision)
 - API: `GET /api/slots?doctorId=&date=` and `GET /api/slots/dates?doctorId=&from=&to=`
 - Zod schemas: `lib/zod-schemas/slot.ts`
+- **Fix**: Memoized date ranges in `StepDate.tsx` to prevent infinite request loops (standardized to `startOfDay`).
+- **Feature**: Auto-selection of doctor via `?doctorId=` search param in booking page.
 
 ### Phase 4 — Booking Flow ✅
 - `lib/services/booking-rules.service.ts` — validates booking constraints
@@ -60,6 +62,10 @@ Doctor Appointment Booking System for the Bangladesh market. Next.js 16 App Rout
 - GSAP animation system (`lib/animations/`)
 - Landing page (`app/(public)/page.tsx`) with all sections
 - `/about`, `/contact`, `/doctors` pages
+- **Fix**: Data mapping in `StepDoctor.tsx` (`data.data` path correction).
+
+### Testing 🧪
+- `tests/booking-flow.test.ts`: Standalone API integration test that simulates the entire booking flow (Doctor -> Chamber -> Date -> Slot). Run with `npx tsx tests/booking-flow.test.ts`.
 
 ## Portal Layouts
 - Admin portal: `app/(portal)/admin/` with sidebar (`components/layouts/PortalSidebar.tsx`)
@@ -118,6 +124,8 @@ components/
 store/
 ├── auth.store.ts    # Auth state + permissions
 └── booking.store.ts # Booking wizard state
+tests/
+└── booking-flow.test.ts # API integration test
 ```
 
 ## Remaining Phases

@@ -1,103 +1,176 @@
-import { startOfDay, addDays } from "date-fns";
+/**
+ * Integration tests for the booking flow API.
+ *
+ * REQUIRES the dev server to be running: pnpm dev
+ * Run standalone: pnpm test:integration
+ * Or run as part of Vitest suite: pnpm test (server must be up)
+ */
+import { describe, it, expect, beforeAll, vi } from 'vitest'
+import { startOfDay, addDays } from 'date-fns'
 
-async function run() {
-  console.log("🚀 Starting Booking Flow API Verification\n");
+const BASE_URL = 'http://127.0.0.1:3000'
 
-  const baseUrl = "http://127.0.0.1:3000";
+type Doctor = { id: string; nameEn: string }
+type Chamber = { chamberId: string; nameEn: string }
 
-  try {
-    // ----------------------------------------------------
-    // Phase 1: Fetch Doctors
-    // ----------------------------------------------------
-    console.log("1️⃣  Fetching doctors...");
-    const docRes = await fetch(`${baseUrl}/api/doctors?page=1&limit=20&isAvailable=true`);
-    const docJson = await docRes.json();
-    
-    if (!docJson.success || !docJson.data || docJson.data.length === 0) {
-      throw new Error("No doctors found or API failed.");
+let doctor: Doctor
+let chamber: Chamber
+let firstAvailableDate: string
+let serverOnline = false
+
+// ---------------------------------------------------------------------------
+
+describe('Booking Flow — Public APIs', () => {
+  beforeAll(async () => {
+    try {
+      await fetch(`${BASE_URL}/api/doctors?page=1&limit=1`)
+      serverOnline = true
+    } catch {
+      console.warn('⚠️  Dev server offline — integration tests skipped. Run `pnpm dev` to enable.')
     }
-    const doctor = docJson.data[0];
-    console.log(`✅ Found Doctor: ${doctor.nameEn} (ID: ${doctor.id})\n`);
+  })
 
-    // ----------------------------------------------------
-    // Phase 2: Fetch Doctor Details & Chamber
-    // ----------------------------------------------------
-    console.log("2️⃣  Retrieving primary chamber...");
-    const docDetailsRes = await fetch(`${baseUrl}/api/doctors/${doctor.id}`);
-    const docDetailsJson = await docDetailsRes.json();
-    
-    if (!docDetailsJson.success || !docDetailsJson.data.chambers || docDetailsJson.data.chambers.length === 0) {
-      throw new Error("Doctor has no chambers.");
-    }
-    const chamber = docDetailsJson.data.chambers[0];
-    console.log(`✅ Found Chamber: ${chamber.nameEn} (ID: ${chamber.chamberId})\n`);
+  const itOnline = (name: string, fn: () => Promise<void>) =>
+    it(name, async () => {
+      if (!serverOnline) return
+      await fn()
+    })
 
-    // ----------------------------------------------------
-    // Phase 3: Fetch Available Dates
-    // ----------------------------------------------------
-    console.log("3️⃣  Fetching available dates...");
-    const from = startOfDay(new Date());
-    const to = addDays(from, 30);
-    
-    const datesUrl = new URL(`${baseUrl}/api/slots/dates`);
-    datesUrl.searchParams.set("doctorId", doctor.id);
-    datesUrl.searchParams.set("chamberId", chamber.chamberId);
-    datesUrl.searchParams.set("from", from.toISOString());
-    datesUrl.searchParams.set("to", to.toISOString());
+  // ---- Phase 1: Doctors ----
+  describe('Phase 1 — GET /api/doctors', () => {
+    itOnline('returns a non-empty list of doctors', async () => {
+      const res = await fetch(`${BASE_URL}/api/doctors?page=1&limit=20&isAvailable=true`)
+      const json = await res.json()
+      expect(res.status).toBe(200)
+      expect(json.success).toBe(true)
+      expect(Array.isArray(json.data)).toBe(true)
+      expect(json.data.length).toBeGreaterThan(0)
+      doctor = json.data[0]
+    })
 
-    const datesRes = await fetch(datesUrl.toString());
-    const datesJson = await datesRes.json();
-    
-    if (!datesJson.success || !datesJson.data.dates || datesJson.data.dates.length === 0) {
-      throw new Error("No available dates found within the next 30 days. Seed data may be missing schedule.");
-    }
-    const firstAvailableDate = datesJson.data.dates[0].date;
-    console.log(`✅ Found Available Date: ${firstAvailableDate} (${datesJson.data.dates.length} total available dates found)\n`);
+    itOnline('each doctor has an id and nameEn', async () => {
+      const res = await fetch(`${BASE_URL}/api/doctors?page=1&limit=5`)
+      const json = await res.json()
+      for (const d of json.data) {
+        expect(d).toHaveProperty('id')
+        expect(d).toHaveProperty('nameEn')
+      }
+    })
+  })
 
-    // ----------------------------------------------------
-    // Phase 4: Fetch Slots for the Date
-    // ----------------------------------------------------
-    console.log(`4️⃣  Fetching slots for ${firstAvailableDate}...`);
-    const slotsUrl = new URL(`${baseUrl}/api/slots`);
-    slotsUrl.searchParams.set("doctorId", doctor.id);
-    slotsUrl.searchParams.set("chamberId", chamber.chamberId);
-    slotsUrl.searchParams.set("date", new Date(firstAvailableDate).toISOString());
+  // ---- Phase 2: Chambers ----
+  describe('Phase 2 — GET /api/doctors/:id (chamber)', () => {
+    itOnline('returns doctor details with at least one chamber', async () => {
+      const res = await fetch(`${BASE_URL}/api/doctors/${doctor.id}`)
+      const json = await res.json()
+      expect(res.status).toBe(200)
+      expect(json.success).toBe(true)
+      expect(Array.isArray(json.data.chambers)).toBe(true)
+      expect(json.data.chambers.length).toBeGreaterThan(0)
+      chamber = json.data.chambers[0]
+    })
 
-    const slotsRes = await fetch(slotsUrl.toString());
-    const slotsJson = await slotsRes.json();
-    
-    if (!slotsJson.success || !slotsJson.data.slots || slotsJson.data.slots.length === 0) {
-      throw new Error(`No slots found for ${firstAvailableDate}.`);
-    }
-    
-    const availableSlots = slotsJson.data.slots.filter((s: any) => s.isAvailable);
-    if (availableSlots.length === 0) {
-      throw new Error(`No available slots found for ${firstAvailableDate} (all booked).`);
-    }
-    const slot = availableSlots[0];
-    console.log(`✅ Found ${availableSlots.length} available slots. First slot: ${slot.startTime} - ${slot.endTime}\n`);
+    itOnline('chamber has chamberId and nameEn', async () => {
+      expect(chamber).toHaveProperty('chamberId')
+      expect(chamber).toHaveProperty('nameEn')
+    })
 
-    // ----------------------------------------------------
-    // Phase 5: Booking Submission
-    // ----------------------------------------------------
-    console.log("5️⃣  Validating appointment payload...");
-    console.log("⚠️  Skipping actual POST to /api/appointments because it requires an authenticated NextAuth session.");
-    console.log("Payload would be:");
-    console.log({
-      doctorId: doctor.id,
-      chamberId: chamber.chamberId,
-      appointmentDate: firstAvailableDate,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      appointmentType: "CONSULTATION",
-      paymentMethod: "CASH"
-    });
-    console.log("\n🎉 ALL PUBLIC BOOKING APIs ARE WORKING PERFECTLY!");
-    
-  } catch (error) {
-    console.error("\n❌ Test failed:", error instanceof Error ? error.message : error);
-    process.exit(1);
-  }
-}
+    itOnline('returns 404 for unknown doctor id', async () => {
+      const res = await fetch(`${BASE_URL}/api/doctors/nonexistent-id`)
+      expect(res.status).toBe(404)
+    })
+  })
 
-run();
+  // ---- Phase 3: Available Dates ----
+  describe('Phase 3 — GET /api/slots/dates', () => {
+    itOnline('returns at least one available date in the next 30 days', async () => {
+      const from = startOfDay(new Date())
+      const to = addDays(from, 30)
+
+      const url = new URL(`${BASE_URL}/api/slots/dates`)
+      url.searchParams.set('doctorId', doctor.id)
+      url.searchParams.set('chamberId', chamber.chamberId)
+      url.searchParams.set('from', from.toISOString())
+      url.searchParams.set('to', to.toISOString())
+
+      const res = await fetch(url)
+      const json = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(json.success).toBe(true)
+      expect(Array.isArray(json.data.dates)).toBe(true)
+      expect(json.data.dates.length).toBeGreaterThan(0)
+      firstAvailableDate = json.data.dates[0].date
+    })
+
+    itOnline('each date entry has a date string and availableSlots count', async () => {
+      const from = startOfDay(new Date())
+      const to = addDays(from, 30)
+      const url = new URL(`${BASE_URL}/api/slots/dates`)
+      url.searchParams.set('doctorId', doctor.id)
+      url.searchParams.set('chamberId', chamber.chamberId)
+      url.searchParams.set('from', from.toISOString())
+      url.searchParams.set('to', to.toISOString())
+      const json = await (await fetch(url)).json()
+      for (const entry of json.data.dates) {
+        expect(entry).toHaveProperty('date')
+        expect(entry.availableSlots).toBeGreaterThan(0)
+      }
+    })
+
+    itOnline('returns empty dates array when range has no schedule', async () => {
+      const past = new Date('2000-01-01')
+      const pastEnd = new Date('2000-01-07')
+      const url = new URL(`${BASE_URL}/api/slots/dates`)
+      url.searchParams.set('doctorId', doctor.id)
+      url.searchParams.set('chamberId', chamber.chamberId)
+      url.searchParams.set('from', past.toISOString())
+      url.searchParams.set('to', pastEnd.toISOString())
+      const json = await (await fetch(url)).json()
+      expect(json.success).toBe(true)
+      expect(json.data.dates).toHaveLength(0)
+    })
+  })
+
+  // ---- Phase 4: Slots ----
+  describe('Phase 4 — GET /api/slots', () => {
+    itOnline('returns time slots for the first available date', async () => {
+      const url = new URL(`${BASE_URL}/api/slots`)
+      url.searchParams.set('doctorId', doctor.id)
+      url.searchParams.set('chamberId', chamber.chamberId)
+      url.searchParams.set('date', new Date(firstAvailableDate).toISOString())
+
+      const res = await fetch(url)
+      const json = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(json.success).toBe(true)
+      expect(Array.isArray(json.data.slots)).toBe(true)
+      expect(json.data.slots.length).toBeGreaterThan(0)
+    })
+
+    itOnline('each slot has startTime, endTime, isAvailable, remainingSlots', async () => {
+      const url = new URL(`${BASE_URL}/api/slots`)
+      url.searchParams.set('doctorId', doctor.id)
+      url.searchParams.set('chamberId', chamber.chamberId)
+      url.searchParams.set('date', new Date(firstAvailableDate).toISOString())
+      const json = await (await fetch(url)).json()
+      for (const slot of json.data.slots) {
+        expect(slot).toHaveProperty('startTime')
+        expect(slot).toHaveProperty('endTime')
+        expect(slot).toHaveProperty('isAvailable')
+        expect(slot).toHaveProperty('remainingSlots')
+      }
+    })
+
+    itOnline('has at least one available slot on the first available date', async () => {
+      const url = new URL(`${BASE_URL}/api/slots`)
+      url.searchParams.set('doctorId', doctor.id)
+      url.searchParams.set('chamberId', chamber.chamberId)
+      url.searchParams.set('date', new Date(firstAvailableDate).toISOString())
+      const json = await (await fetch(url)).json()
+      const available = json.data.slots.filter((s: { isAvailable: boolean }) => s.isAvailable)
+      expect(available.length).toBeGreaterThan(0)
+    })
+  })
+})

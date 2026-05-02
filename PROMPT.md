@@ -27,7 +27,11 @@ Phase 13 · Deployment      Dockerfile · docker-compose · CI/CD
 
 - **Phase 1 (Foundation):** DB schema, Prisma client, PBAC service, and Auth (NextAuth) setup completed.
 - **Phase 2 (Core Entities):** Doctor, Patient, Chamber, and Schedule models & APIs completed.
-- **Phase 11 (Animations/UI):** GSAP animation system, hybrid i18n setup, and the complete Landing Page (`/`, `/about`, `/contact`, `/doctors`) implemented.
+- **Phase 3 (Slot Engine):** Slot generation engine, availability APIs, and fixes for infinite request loops in the UI completed.
+- **Phase 4 (Booking Flow):** 7-step booking wizard with auto-selection support and appointment lifecycle APIs completed.
+- **Phase 11 (Animations/UI):** GSAP animation system, hybrid i18n setup, and the complete Landing Page (`/`, `/about`, `/contact`, `/doctors` pages) implemented.
+- **Fix:** Data mapping in `StepDoctor.tsx` (`data.data` path correction).
+- **Testing:** API integration test (`tests/booking-flow.test.ts`) added to validate the end-to-end booking process.
 
 ---
 ## PART 1: AUTHORIZATION ARCHITECTURE
@@ -568,6 +572,8 @@ components/
 └── [feature]/
 
 store/               auth.store.ts, booking.store.ts, ui.store.ts
+
+tests/               booking-flow.test.ts (API integration)
 
 public/locales/bn/   en/
 ```
